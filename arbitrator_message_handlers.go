@@ -4,10 +4,17 @@ import (
 	"fmt"
 	"github.com/CameronHonis/chess-arbitrator/server"
 	"github.com/CameronHonis/chess-bot-server/engines"
+	"os"
 )
 
 func HandleMessageFromArbitrator(msg *server.Message) error {
 	switch msg.ContentType {
+	case server.CONTENT_TYPE_AUTH:
+		content, ok := msg.Content.(*server.AuthMessageContent)
+		if !ok {
+			return fmt.Errorf("could not cast message to AuthMessageContent")
+		}
+		return HandleAuthMessage(content)
 	case server.CONTENT_TYPE_FIND_BOT_MATCH:
 		content, ok := msg.Content.(*server.FindBotMatchMessageContent)
 		if !ok {
@@ -20,11 +27,36 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 			return fmt.Errorf("could not cast message to MatchUpdateMessageContent")
 		}
 		return HandleMatchUpdateMessage(content)
+	case server.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
+		HandleUpgradeAuthDeniedMessage()
+		return nil
 	case server.CONTENT_TYPE_MOVE:
+		return nil
+	case server.CONTENT_TYPE_UPGRADE_AUTH_GRANTED:
 		return nil
 	default:
 		return fmt.Errorf("unhandled message with content type %s", msg.ContentType)
 	}
+}
+
+func HandleAuthMessage(content *server.AuthMessageContent) error {
+	GetArbitratorClient().SetPublicPrivateKey(content.PublicKey, content.PrivateKey)
+	botSecret, ok := os.LookupEnv("BOT_CLIENT_SECRET")
+	if !ok {
+		panic("could not determine bot client secret")
+	}
+	msg := server.Message{
+		Topic:       "",
+		ContentType: server.CONTENT_TYPE_UPGRADE_AUTH_REQUEST,
+		Content: &server.UpgradeAuthRequestMessageContent{
+			Secret: botSecret,
+		},
+	}
+	sendErr := GetArbitratorClient().SendMessage(&msg)
+	if sendErr != nil {
+		return sendErr
+	}
+	return nil
 }
 
 func HandleFindBotMatchMessage(content *server.FindBotMatchMessageContent) error {
@@ -35,10 +67,9 @@ func HandleFindBotMatchMessage(content *server.FindBotMatchMessageContent) error
 	}
 	msg := server.Message{
 		Topic:       "findMatch",
-		ContentType: server.CONTENT_TYPE_FIND_MATCH,
+		ContentType: server.CONTENT_TYPE_FIND_BOT_MATCH,
 		Content: &server.FindBotMatchMessageContent{
-			BotName:   content.BotName,
-			PlayerKey: content.PlayerKey,
+			BotName: content.BotName,
 		},
 	}
 	msgErr := GetArbitratorClient().SendMessage(&msg)
@@ -46,6 +77,10 @@ func HandleFindBotMatchMessage(content *server.FindBotMatchMessageContent) error
 		return msgErr
 	}
 	return nil
+}
+
+func HandleUpgradeAuthDeniedMessage() {
+	panic("arbitrator denied bot client auth")
 }
 
 func HandleMatchUpdateMessage(content *server.MatchUpdateMessageContent) error {

@@ -10,7 +10,9 @@ import (
 var arbitratorClient *ArbitratorClient
 
 type ArbitratorClient struct {
-	conn *websocket.Conn
+	conn       *websocket.Conn
+	publicKey  string
+	privateKey string
 }
 
 func GetArbitratorClient() *ArbitratorClient {
@@ -64,10 +66,21 @@ func (ac *ArbitratorClient) SendMessage(msg *server.Message) error {
 	if ac.conn == nil {
 		return fmt.Errorf("cannot send message, connection is nil")
 	}
+	ac.SignMessage(msg)
 	msgBytes, marshalErr := msg.Marshal()
 	if marshalErr != nil {
 		return marshalErr
 	}
 	fmt.Println("[CLIENT]", ">>", string(msgBytes))
 	return ac.conn.WriteMessage(websocket.TextMessage, msgBytes)
+}
+
+func (ac *ArbitratorClient) SetPublicPrivateKey(publicKey string, privateKey string) {
+	ac.publicKey = publicKey
+	ac.privateKey = privateKey
+}
+
+func (ac *ArbitratorClient) SignMessage(msg *server.Message) {
+	msg.SenderKey = ac.publicKey
+	msg.PrivateKey = ac.privateKey
 }
