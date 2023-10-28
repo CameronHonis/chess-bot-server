@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/CameronHonis/chess-arbitrator/server"
 	"github.com/gorilla/websocket"
+	"time"
 )
 
 var arbitratorClient *ArbitratorClient
@@ -15,36 +16,33 @@ type ArbitratorClient struct {
 func GetArbitratorClient() *ArbitratorClient {
 	if arbitratorClient == nil {
 		arbitratorClient = &ArbitratorClient{}
-		connectErr := arbitratorClient.connect()
-		if connectErr != nil {
-			panic(connectErr)
-		}
 		go arbitratorClient.listenOnWebsocket()
 	}
 	return arbitratorClient
 }
 
-func (ac *ArbitratorClient) connect() error {
-	var err error
-	ac.conn, _, err = websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
-	if err != nil {
-		return err
+func (ac *ArbitratorClient) connect() {
+	for ac.conn == nil {
+		var err error
+		ac.conn, _, err = websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
+		if err != nil {
+			fmt.Println("[CLIENT]", "could not connect to arbitrator, retrying in 1 second:", err)
+			ac.conn = nil
+			time.Sleep(time.Second)
+		}
 	}
-	return nil
 }
 
 func (ac *ArbitratorClient) listenOnWebsocket() {
 	for {
-		if ac.conn == nil {
-			fmt.Println("[CLIENT]", "cannot listen on websocket, connection is nil")
-			return
-		}
+		ac.connect()
 		for {
 			_, rawMsg, readErr := ac.conn.ReadMessage()
 			if readErr != nil {
 				fmt.Println("[CLIENT]", "error reading message from websocket:", readErr)
 				// assume all readErrs are disconnects
-				return
+				ac.conn = nil
+				break
 			}
 			fmt.Println("[CLIENT]", "arbitrator >>", string(rawMsg))
 
