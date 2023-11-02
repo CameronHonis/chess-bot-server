@@ -84,3 +84,61 @@ func (ac *ArbitratorClient) SignMessage(msg *server.Message) {
 	msg.SenderKey = ac.publicKey
 	msg.PrivateKey = ac.privateKey
 }
+
+func (ac *ArbitratorClient) RequestAuthUpgrade(upgradeSecret string) error {
+	msg := server.Message{
+		Topic:       "",
+		ContentType: server.CONTENT_TYPE_UPGRADE_AUTH_REQUEST,
+		Content: &server.UpgradeAuthRequestMessageContent{
+			Secret: upgradeSecret,
+		},
+	}
+	return ac.SendMessage(&msg)
+}
+
+func (ac *ArbitratorClient) RequestSubscribe(topic server.MessageTopic) error {
+	msg := server.Message{
+		Topic:       "subscribe",
+		ContentType: server.CONTENT_TYPE_SUBSCRIBE_REQUEST,
+		Content: &server.SubscribeRequestMessageContent{
+			Topic: topic,
+		},
+	}
+	return ac.SendMessage(&msg)
+}
+
+func (ac *ArbitratorClient) FindBotMatch(botName string) error {
+	msg := server.Message{
+		Topic:       "findBotMatch",
+		ContentType: server.CONTENT_TYPE_FIND_BOT_MATCH,
+		Content: &server.FindBotMatchMessageContent{
+			BotName: botName,
+		},
+	}
+	return ac.SendMessage(&msg)
+}
+
+func (ac *ArbitratorClient) FailInitBotRequest(requesterKey string, botName string, reason string) error {
+	msg := server.Message{
+		Topic:       "",
+		ContentType: server.CONTENT_TYPE_INIT_BOT_FAILURE,
+		Content: &server.InitBotFailureMessageContent{
+			RequesterClientKey: requesterKey,
+			BotName:            botName,
+			Reason:             reason,
+		},
+	}
+	return ac.SendMessage(&msg)
+}
+
+func (ac *ArbitratorClient) SucceedInitBotRequest(requesterKey string, botName string) error {
+	msg := server.Message{
+		Topic:       "",
+		ContentType: server.CONTENT_TYPE_INIT_BOT_SUCCESS,
+		Content: &server.InitBotSuccessMessageContent{
+			RequesterClientKey: requesterKey,
+			BotName:            botName,
+		},
+	}
+	return ac.SendMessage(&msg)
+}

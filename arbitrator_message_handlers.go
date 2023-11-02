@@ -20,7 +20,7 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 		if !ok {
 			return fmt.Errorf("could not cast message to FindBotMatchMessageContent")
 		}
-		return HandleFindBotMatchMessage(content)
+		return HandleFindBotMatchMessage(msg.SenderKey, content)
 	case server.CONTENT_TYPE_MATCH_UPDATE:
 		content, ok := msg.Content.(*server.MatchUpdateMessageContent)
 		if !ok {
@@ -30,9 +30,18 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 	case server.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
 		HandleUpgradeAuthDeniedMessage()
 		return nil
-	case server.CONTENT_TYPE_MOVE:
-		return nil
 	case server.CONTENT_TYPE_UPGRADE_AUTH_GRANTED:
+		return HandleAuthUpgradeGrantedMessage()
+	case server.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
+		content, ok := msg.Content.(*server.SubscribeRequestDeniedMessageContent)
+		if !ok {
+			return fmt.Errorf("could not cast message to SubscribeRequestDeniedMessageContent")
+		}
+		HandleSubscribeDeniedMessage(content.Topic)
+		return nil
+	case server.CONTENT_TYPE_SUBSCRIBE_REQUEST_GRANTED:
+		return nil
+	case server.CONTENT_TYPE_MOVE:
 		return nil
 	default:
 		return fmt.Errorf("unhandled message with content type %s", msg.ContentType)
@@ -45,42 +54,29 @@ func HandleAuthMessage(content *server.AuthMessageContent) error {
 	if !ok {
 		panic("could not determine bot client secret")
 	}
-	msg := server.Message{
-		Topic:       "",
-		ContentType: server.CONTENT_TYPE_UPGRADE_AUTH_REQUEST,
-		Content: &server.UpgradeAuthRequestMessageContent{
-			Secret: botSecret,
-		},
-	}
-	sendErr := GetArbitratorClient().SendMessage(&msg)
-	if sendErr != nil {
-		return sendErr
-	}
-	return nil
+	return GetArbitratorClient().RequestAuthUpgrade(botSecret)
 }
 
-func HandleFindBotMatchMessage(content *server.FindBotMatchMessageContent) error {
+func HandleAuthUpgradeGrantedMessage() error {
+	return GetArbitratorClient().RequestSubscribe("findBotMatch")
+}
+
+func HandleFindBotMatchMessage(senderKey string, content *server.FindBotMatchMessageContent) error {
 	// TODO: handle remote engine lookups
 	_, engineErr := engines.GetLocalEngine(content.BotName)
 	if engineErr != nil {
+		_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, engineErr.Error())
 		return engineErr
 	}
-	msg := server.Message{
-		Topic:       "findMatch",
-		ContentType: server.CONTENT_TYPE_FIND_BOT_MATCH,
-		Content: &server.FindBotMatchMessageContent{
-			BotName: content.BotName,
-		},
-	}
-	msgErr := GetArbitratorClient().SendMessage(&msg)
-	if msgErr != nil {
-		return msgErr
-	}
-	return nil
+	return GetArbitratorClient().SucceedInitBotRequest(senderKey, content.BotName)
 }
 
 func HandleUpgradeAuthDeniedMessage() {
 	panic("arbitrator denied bot client auth")
+}
+
+func HandleSubscribeDeniedMessage(topic server.MessageTopic) {
+	panic(fmt.Sprintf("arbitrator denied bot client subscription%s", topic))
 }
 
 func HandleMatchUpdateMessage(content *server.MatchUpdateMessageContent) error {

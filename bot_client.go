@@ -14,7 +14,7 @@ type BotClient interface {
 }
 
 type LocalBotClient struct {
-	engine *engines.Engine
+	engine engines.Engine
 }
 
 func NewLocalBotClient(engineName string) (BotClient, error) {
@@ -29,16 +29,16 @@ func NewLocalBotClient(engineName string) (BotClient, error) {
 }
 
 func (lbc LocalBotClient) Initialize(match *server.Match) error {
-	(*lbc.engine).Initialize(match)
+	lbc.engine.Initialize(match)
 	return nil
 }
 
 func (lbc LocalBotClient) GenerateMove(match *server.Match) (*chess.Move, error) {
-	return (*lbc.engine).GenerateMove(match), nil
+	return lbc.engine.GenerateMove(match), nil
 }
 
 func (lbc LocalBotClient) Terminate(match *server.Match) error {
-	(*lbc.engine).Terminate(match)
+	lbc.engine.Terminate(match)
 	return nil
 }
 
