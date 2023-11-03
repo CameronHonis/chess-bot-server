@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/CameronHonis/chess"
 	"github.com/CameronHonis/chess-arbitrator/server"
 	"github.com/gorilla/websocket"
 	"time"
@@ -21,6 +22,10 @@ func GetArbitratorClient() *ArbitratorClient {
 		go arbitratorClient.listenOnWebsocket()
 	}
 	return arbitratorClient
+}
+
+func (ac *ArbitratorClient) GetPublicKey() string {
+	return ac.publicKey
 }
 
 func (ac *ArbitratorClient) connect() {
@@ -138,6 +143,17 @@ func (ac *ArbitratorClient) SucceedInitBotRequest(requesterKey string, botName s
 		Content: &server.InitBotSuccessMessageContent{
 			RequesterClientKey: requesterKey,
 			BotName:            botName,
+		},
+	}
+	return ac.SendMessage(&msg)
+}
+
+func (ac *ArbitratorClient) SendMove(matchId string, move *chess.Move) error {
+	msg := server.Message{
+		Topic:       server.MessageTopic(fmt.Sprintf("match-%s", matchId)),
+		ContentType: server.CONTENT_TYPE_MOVE,
+		Content: &server.MoveMessageContent{
+			Move: move,
 		},
 	}
 	return ac.SendMessage(&msg)

@@ -26,7 +26,7 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 		if !ok {
 			return fmt.Errorf("could not cast message to MatchUpdateMessageContent")
 		}
-		return HandleMatchUpdateMessage(content)
+		return HandleMatchUpdateMessage(content.Match)
 	case server.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
 		HandleUpgradeAuthDeniedMessage()
 		return nil
@@ -79,7 +79,29 @@ func HandleSubscribeDeniedMessage(topic server.MessageTopic) {
 	panic(fmt.Sprintf("arbitrator denied bot client subscription%s", topic))
 }
 
-func HandleMatchUpdateMessage(content *server.MatchUpdateMessageContent) error {
+func HandleMatchUpdateMessage(match *server.Match) error {
+	botClientKey := GetArbitratorClient().GetPublicKey()
+	isBotTurn := false
+	if match.Board.IsWhiteTurn {
+		if match.WhiteClientId == botClientKey {
+			isBotTurn = true
+		}
+	} else {
+		if match.BlackClientId == botClientKey {
+			isBotTurn = true
+		}
+	}
+	if !isBotTurn {
+		return nil
+	}
 
-	return nil
+	botClient, botClientErr := GetBotClientManager().GetBotClient(match.Uuid)
+	if botClientErr != nil {
+		return botClientErr
+	}
+	move, moveErr := botClient.GenerateMove(match)
+	if moveErr != nil {
+		return moveErr
+	}
+	return GetArbitratorClient().SendMove(match.Uuid, move)
 }

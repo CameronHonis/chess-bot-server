@@ -8,13 +8,13 @@ import (
 var botClientManager *BotClientManager
 
 type BotClientManager struct {
-	botClientByMatchId map[string]*BotClient
+	botClientByMatchId map[string]BotClient
 }
 
 func GetBotClientManager() *BotClientManager {
 	if botClientManager == nil {
 		botClientManager = &BotClientManager{
-			botClientByMatchId: make(map[string]*BotClient),
+			botClientByMatchId: make(map[string]BotClient),
 		}
 	}
 	return botClientManager
@@ -30,11 +30,11 @@ func (bm *BotClientManager) AddBotClient(match *server.Match, botName string) er
 	if initErr != nil {
 		return initErr
 	}
-	bm.botClientByMatchId[match.Uuid] = &botClient
+	bm.botClientByMatchId[match.Uuid] = botClient
 	return nil
 }
 
-func (bm *BotClientManager) GetBotClient(matchId string) (*BotClient, error) {
+func (bm *BotClientManager) GetBotClient(matchId string) (BotClient, error) {
 	botClient, ok := bm.botClientByMatchId[matchId]
 	if !ok {
 		return nil, fmt.Errorf("no bot client found for match %s", matchId)
@@ -48,5 +48,5 @@ func (bm *BotClientManager) RemoveBotClient(match *server.Match) error {
 		return fetchBotClientErr
 	}
 	delete(bm.botClientByMatchId, match.Uuid)
-	return (*botClient).Terminate(match)
+	return botClient.Terminate(match)
 }

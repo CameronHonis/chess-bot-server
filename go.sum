@@ -1,5 +1,7 @@
 github.com/CameronHonis/chess v0.0.0-20231026001700-1bce8cf416e4 h1:tMi8FgE75mPshXisK3282BgDNIt+ux4hbqIM/BicS90=
 github.com/CameronHonis/chess v0.0.0-20231026001700-1bce8cf416e4/go.mod h1:oKn3W5vNVxt0S0K8+jxM7NHO2UhUfmpifIr8eeCt7k4=
+github.com/CameronHonis/chess v0.0.0-20231103001456-f5db2e734a3b h1:q2YdTi0qoN61oa85PZhGMiihN+73yrHVHRpcuECC1jA=
+github.com/CameronHonis/chess v0.0.0-20231103001456-f5db2e734a3b/go.mod h1:oKn3W5vNVxt0S0K8+jxM7NHO2UhUfmpifIr8eeCt7k4=
 github.com/CameronHonis/chess-arbitrator v0.0.0-20231027013422-3060afab4627 h1:bz4pSzWAJmDbyfsoB7WSylCgjh4hO4ph/w9uJmKcRBU=
 github.com/CameronHonis/chess-arbitrator v0.0.0-20231027013422-3060afab4627/go.mod h1:QIY846RDTq/O15OsZwyVkdjzBizRq+lbUWxkQ04DrEY=
 github.com/CameronHonis/chess-arbitrator v0.0.0-20231027192501-fcde74935eb3 h1:tuDFHYzxtgJ7TfOhPQjbcmAx5E8so4Vf9uvwtmZLfFo=
