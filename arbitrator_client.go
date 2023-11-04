@@ -123,26 +123,26 @@ func (ac *ArbitratorClient) FindBotMatch(botName string) error {
 	return ac.SendMessage(&msg)
 }
 
-func (ac *ArbitratorClient) FailInitBotRequest(requesterKey string, botName string, reason string) error {
+func (ac *ArbitratorClient) FailInitBotRequest(matchId string, botName string, reason string) error {
 	msg := server.Message{
 		Topic:       "",
-		ContentType: server.CONTENT_TYPE_INIT_BOT_FAILURE,
-		Content: &server.InitBotFailureMessageContent{
-			RequesterClientKey: requesterKey,
-			BotName:            botName,
-			Reason:             reason,
+		ContentType: server.CONTENT_TYPE_INIT_BOT_MATCH_FAILURE,
+		Content: &server.InitBotMatchFailureMessageContent{
+			BotName: botName,
+			MatchId: matchId,
+			Reason:  reason,
 		},
 	}
 	return ac.SendMessage(&msg)
 }
 
-func (ac *ArbitratorClient) SucceedInitBotRequest(requesterKey string, botName string) error {
+func (ac *ArbitratorClient) SucceedInitBotRequest(matchId string, botName string) error {
 	msg := server.Message{
 		Topic:       "",
-		ContentType: server.CONTENT_TYPE_INIT_BOT_SUCCESS,
-		Content: &server.InitBotSuccessMessageContent{
-			RequesterClientKey: requesterKey,
-			BotName:            botName,
+		ContentType: server.CONTENT_TYPE_INIT_BOT_MATCH_SUCCESS,
+		Content: &server.InitBotMatchSuccessMessageContent{
+			MatchId: matchId,
+			BotName: botName,
 		},
 	}
 	return ac.SendMessage(&msg)
@@ -153,7 +153,8 @@ func (ac *ArbitratorClient) SendMove(matchId string, move *chess.Move) error {
 		Topic:       server.MessageTopic(fmt.Sprintf("match-%s", matchId)),
 		ContentType: server.CONTENT_TYPE_MOVE,
 		Content: &server.MoveMessageContent{
-			Move: move,
+			MatchId: matchId,
+			Move:    move,
 		},
 	}
 	return ac.SendMessage(&msg)

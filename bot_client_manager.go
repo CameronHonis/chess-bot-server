@@ -20,17 +20,17 @@ func GetBotClientManager() *BotClientManager {
 	return botClientManager
 }
 
-func (bm *BotClientManager) AddBotClient(match *server.Match, botName string) error {
+func (bm *BotClientManager) AddNewBotClient(matchId string, botName string) error {
 	// TODO: add lookups for remote bot clients
 	botClient, botClientErr := NewLocalBotClient(botName)
 	if botClientErr != nil {
 		return botClientErr
 	}
-	initErr := botClient.Initialize(match)
-	if initErr != nil {
-		return initErr
-	}
-	bm.botClientByMatchId[match.Uuid] = botClient
+	//initErr := botClient.Initialize(match)
+	//if initErr != nil {
+	//	return initErr
+	//}
+	bm.botClientByMatchId[matchId] = botClient
 	return nil
 }
 

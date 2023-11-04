@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/CameronHonis/chess-arbitrator/server"
-	"github.com/CameronHonis/chess-bot-server/engines"
 	"os"
 )
 
@@ -21,6 +20,12 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 			return fmt.Errorf("could not cast message to FindBotMatchMessageContent")
 		}
 		return HandleFindBotMatchMessage(msg.SenderKey, content)
+	case server.CONTENT_TYPE_INIT_BOT_MATCH:
+		content, ok := msg.Content.(*server.InitBotMatchMessageContent)
+		if !ok {
+			return fmt.Errorf("could not cast message to InitBotMatchSuccessMessageContent")
+		}
+		return HandleInitBotMatchMessage(content.MatchId, content.BotName)
 	case server.CONTENT_TYPE_MATCH_UPDATE:
 		content, ok := msg.Content.(*server.MatchUpdateMessageContent)
 		if !ok {
@@ -63,12 +68,32 @@ func HandleAuthUpgradeGrantedMessage() error {
 
 func HandleFindBotMatchMessage(senderKey string, content *server.FindBotMatchMessageContent) error {
 	// TODO: handle remote engine lookups
-	_, engineErr := engines.GetLocalEngine(content.BotName)
-	if engineErr != nil {
-		_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, engineErr.Error())
-		return engineErr
+	// TODO: refactor bot match creation workflow so this temporary match hack isn't necessary
+	//match := server.Match{
+	//	WhiteClientId: senderKey,
+	//	BlackClientId: GetArbitratorClient().GetPublicKey(),
+	//}
+	//matchErr := server.GetMatchManager().AddMatch(&match)
+	//if matchErr != nil {
+	//	_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, matchErr.Error())
+	//	return matchErr
+	//}
+	//botClientErr := GetBotClientManager().AddNewBotClient(&match, content.BotName)
+	//if botClientErr != nil {
+	//	_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, botClientErr.Error())
+	//	return botClientErr
+	//}
+	//return GetArbitratorClient().SucceedInitBotRequest(senderKey, content.BotName)
+	return nil
+}
+
+func HandleInitBotMatchMessage(matchId string, botName string) error {
+	botInitErr := GetBotClientManager().AddNewBotClient(matchId, botName)
+	if botInitErr != nil {
+		_ = GetArbitratorClient().FailInitBotRequest(matchId, botName, botInitErr.Error())
+		return botInitErr
 	}
-	return GetArbitratorClient().SucceedInitBotRequest(senderKey, content.BotName)
+	return GetArbitratorClient().SucceedInitBotRequest(matchId, botName)
 }
 
 func HandleUpgradeAuthDeniedMessage() {
