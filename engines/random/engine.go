@@ -1,6 +1,7 @@
 package random
 
 import (
+	"fmt"
 	"github.com/CameronHonis/chess"
 	"github.com/CameronHonis/chess-arbitrator/server"
 	"math/rand"
@@ -14,7 +15,7 @@ func (re *Engine) Initialize(match *server.Match) {
 
 }
 
-func (re *Engine) GenerateMove(match *server.Match) *chess.Move {
+func (re *Engine) GenerateMove(match *server.Match) (*chess.Move, error) {
 	movesBySquare, _ := chess.GetLegalMoves(match.Board, false)
 	moves := make([]*chess.Move, 0)
 	for r := 0; r < 8; r++ {
@@ -25,8 +26,11 @@ func (re *Engine) GenerateMove(match *server.Match) *chess.Move {
 		}
 	}
 	rand.Seed(time.Now().UnixNano())
+	if len(moves) == 0 {
+		return nil, fmt.Errorf("no legal moves")
+	}
 	randMoveIdx := rand.Intn(len(moves))
-	return moves[randMoveIdx]
+	return moves[randMoveIdx], nil
 }
 
 func (re *Engine) Terminate(match *server.Match) {

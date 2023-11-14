@@ -9,7 +9,7 @@ import (
 
 type Engine interface {
 	Initialize(match *server.Match)
-	GenerateMove(match *server.Match) *chess.Move
+	GenerateMove(match *server.Match) (*chess.Move, error)
 	Terminate(match *server.Match)
 }
 
