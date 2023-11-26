@@ -1,8 +1,9 @@
-package main
+package bot_client
 
 import (
 	"fmt"
 	"github.com/CameronHonis/chess-arbitrator/server"
+	. "github.com/CameronHonis/log"
 )
 
 var botClientManager *BotClientManager
@@ -21,6 +22,7 @@ func GetBotClientManager() *BotClientManager {
 }
 
 func (bm *BotClientManager) AddNewBotClient(matchId string, botName string) error {
+	GetLogManager().Log(ENV_BOT_CLIENT_MANAGER, fmt.Sprintf("adding bot client for match %s", matchId))
 	// TODO: add lookups for remote bot clients
 	botClient, botClientErr := NewLocalBotClient(botName)
 	if botClientErr != nil {
@@ -43,6 +45,7 @@ func (bm *BotClientManager) GetBotClient(matchId string) (BotClient, error) {
 }
 
 func (bm *BotClientManager) RemoveBotClient(match *server.Match) error {
+	GetLogManager().Log(ENV_BOT_CLIENT_MANAGER, fmt.Sprintf("removing bot client for match %s", match.Uuid))
 	botClient, fetchBotClientErr := bm.GetBotClient(match.Uuid)
 	if fetchBotClientErr != nil {
 		return fetchBotClientErr

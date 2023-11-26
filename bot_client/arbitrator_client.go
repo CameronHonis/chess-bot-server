@@ -1,9 +1,10 @@
-package main
+package bot_client
 
 import (
 	"fmt"
 	"github.com/CameronHonis/chess"
 	"github.com/CameronHonis/chess-arbitrator/server"
+	"github.com/CameronHonis/log"
 	"github.com/gorilla/websocket"
 	"time"
 )
@@ -33,7 +34,7 @@ func (ac *ArbitratorClient) connect() {
 		var err error
 		ac.conn, _, err = websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
 		if err != nil {
-			fmt.Println("[CLIENT]", "could not connect to arbitrator, retrying in 1 second:", err)
+			log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not connect to arbitrator, retrying in 1 second: %s", err))
 			ac.conn = nil
 			time.Sleep(time.Second)
 		}
@@ -46,21 +47,21 @@ func (ac *ArbitratorClient) listenOnWebsocket() {
 		for {
 			_, rawMsg, readErr := ac.conn.ReadMessage()
 			if readErr != nil {
-				fmt.Println("[CLIENT]", "error reading message from websocket:", readErr)
+				log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
 				// assume all readErrs are disconnects
 				ac.conn = nil
 				break
 			}
-			fmt.Println("[CLIENT]", "arbitrator >>", string(rawMsg))
+			log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
 
 			msg, unmarshalErr := server.UnmarshalToMessage(rawMsg)
 			if unmarshalErr != nil {
-				fmt.Println("[CLIENT]", "could not unmarshal message:", unmarshalErr)
+				log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
 				continue
 			}
 			handleMsgErr := HandleMessageFromArbitrator(msg)
 			if handleMsgErr != nil {
-				fmt.Println("[CLIENT]", "could not handle message:", handleMsgErr)
+				log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
 				continue
 			}
 		}
@@ -76,7 +77,7 @@ func (ac *ArbitratorClient) SendMessage(msg *server.Message) error {
 	if marshalErr != nil {
 		return marshalErr
 	}
-	fmt.Println("[CLIENT]", ">>", string(msgBytes))
+	log.GetLogManager().Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("sending message %s", msg))
 	return ac.conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
 
