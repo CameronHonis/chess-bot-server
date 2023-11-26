@@ -14,12 +14,6 @@ func HandleMessageFromArbitrator(msg *server.Message) error {
 			return fmt.Errorf("could not cast message to AuthMessageContent")
 		}
 		return HandleAuthMessage(content)
-	case server.CONTENT_TYPE_FIND_BOT_MATCH:
-		content, ok := msg.Content.(*server.FindBotMatchMessageContent)
-		if !ok {
-			return fmt.Errorf("could not cast message to FindBotMatchMessageContent")
-		}
-		return HandleFindBotMatchMessage(msg.SenderKey, content)
 	case server.CONTENT_TYPE_INIT_BOT_MATCH:
 		content, ok := msg.Content.(*server.InitBotMatchMessageContent)
 		if !ok {
@@ -66,27 +60,6 @@ func HandleAuthUpgradeGrantedMessage() error {
 	return GetArbitratorClient().RequestSubscribe("findBotMatch")
 }
 
-func HandleFindBotMatchMessage(senderKey string, content *server.FindBotMatchMessageContent) error {
-	// TODO: handle remote engine lookups
-	// TODO: refactor bot match creation workflow so this temporary match hack isn't necessary
-	//match := server.Match{
-	//	WhiteClientId: senderKey,
-	//	BlackClientId: GetArbitratorClient().GetPublicKey(),
-	//}
-	//matchErr := server.GetMatchManager().AddMatch(&match)
-	//if matchErr != nil {
-	//	_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, matchErr.Error())
-	//	return matchErr
-	//}
-	//botClientErr := GetBotClientManager().AddNewBotClient(&match, content.BotName)
-	//if botClientErr != nil {
-	//	_ = GetArbitratorClient().FailInitBotRequest(senderKey, content.BotName, botClientErr.Error())
-	//	return botClientErr
-	//}
-	//return GetArbitratorClient().SucceedInitBotRequest(senderKey, content.BotName)
-	return nil
-}
-
 func HandleInitBotMatchMessage(matchId string, botName string) error {
 	botInitErr := GetBotClientManager().AddNewBotClient(matchId, botName)
 	if botInitErr != nil {
@@ -105,6 +78,10 @@ func HandleSubscribeDeniedMessage(topic server.MessageTopic) {
 }
 
 func HandleMatchUpdateMessage(match *server.Match) error {
+	if match.Board.IsTerminal {
+		return GetBotClientManager().RemoveBotClient(match)
+	}
+
 	botClientKey := GetArbitratorClient().GetPublicKey()
 	isBotTurn := false
 	if match.Board.IsWhiteTurn {
