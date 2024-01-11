@@ -3,14 +3,14 @@ package engines
 import (
 	"fmt"
 	"github.com/CameronHonis/chess"
-	"github.com/CameronHonis/chess-arbitrator/server"
+	"github.com/CameronHonis/chess-arbitrator/models"
 	"github.com/CameronHonis/chess-bot-server/engines/random"
 )
 
 type Engine interface {
-	Initialize(match *server.Match)
-	GenerateMove(match *server.Match) (*chess.Move, error)
-	Terminate(match *server.Match)
+	Initialize(match *models.Match)
+	GenerateMove(match *models.Match) (*chess.Move, error)
+	Terminate()
 }
 
 func GetLocalEngine(engineName string) (Engine, error) {

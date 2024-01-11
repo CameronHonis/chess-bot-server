@@ -3,7 +3,7 @@ package random
 import (
 	"fmt"
 	"github.com/CameronHonis/chess"
-	"github.com/CameronHonis/chess-arbitrator/server"
+	"github.com/CameronHonis/chess-arbitrator/models"
 	"math/rand"
 	"time"
 )
@@ -11,11 +11,11 @@ import (
 type Engine struct {
 }
 
-func (re *Engine) Initialize(match *server.Match) {
+func (re *Engine) Initialize(match *models.Match) {
 
 }
 
-func (re *Engine) GenerateMove(match *server.Match) (*chess.Move, error) {
+func (re *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
 	movesBySquare, _ := chess.GetLegalMoves(match.Board, false)
 	moves := make([]*chess.Move, 0)
 	for r := 0; r < 8; r++ {
@@ -33,6 +33,6 @@ func (re *Engine) GenerateMove(match *server.Match) (*chess.Move, error) {
 	return moves[randMoveIdx], nil
 }
 
-func (re *Engine) Terminate(match *server.Match) {
+func (re *Engine) Terminate() {
 
 }

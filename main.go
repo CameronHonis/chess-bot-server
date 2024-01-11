@@ -1,15 +1,17 @@
 package main
 
 import (
-	"github.com/CameronHonis/chess-bot-server/bot_client"
+	"github.com/CameronHonis/chess-bot-server/app"
+	"github.com/CameronHonis/chess-bot-server/arbitrator_client"
 	"sync"
 )
 
 func main() {
-	bot_client.ConfigLogger()
+	app.LoggerConfig()
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	bot_client.GetArbitratorClient()
+
+	arbitrator_client.GetArbitratorClient()
 	wg.Wait()
 }
