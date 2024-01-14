@@ -10,6 +10,8 @@ import (
 	"sync"
 )
 
+const ENV_BOT_MANAGER = "BOT_MANAGER"
+
 type BotManagerI interface {
 	service.ServiceI
 	Client(key mods.BotClientKey) (BotClient, error)

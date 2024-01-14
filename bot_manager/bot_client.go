@@ -6,6 +6,8 @@ import (
 	"github.com/CameronHonis/chess-bot-server/engines"
 )
 
+const ENV_BOT_CLIENT = "BOT_CLIENT"
+
 type BotClient interface {
 	Key() models.Key
 	Engine() engines.Engine

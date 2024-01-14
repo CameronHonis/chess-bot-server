@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"github.com/CameronHonis/chess-arbitrator/models"
 	"github.com/CameronHonis/chess-bot-server/bot_manager"
-	mods "github.com/CameronHonis/chess-bot-server/models"
 	"github.com/CameronHonis/log"
 	. "github.com/CameronHonis/marker"
 	"github.com/CameronHonis/service"
 	"github.com/gorilla/websocket"
 	"time"
 )
+
+const ENV_ARBITRATOR_CLIENT = "ARBITRATOR_CLIENT"
 
 type ArbitratorClientI interface {
 	service.ServiceI
@@ -34,6 +35,7 @@ type ArbitratorClient struct {
 func NewArbitratorClient(config *ArbitratorClientConfig) *ArbitratorClient {
 	s := &ArbitratorClient{}
 	s.Service = *service.NewService(s, config)
+	s.AddEventListener(CONN_SUCCESS, s.OnConnect)
 	return s
 }
 
@@ -57,42 +59,46 @@ func (ac *ArbitratorClient) SendMessage(msg *models.Message) error {
 	if marshalErr != nil {
 		return marshalErr
 	}
-	ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("sending message %s", msg))
+	ac.LogService.Log(ENV_ARBITRATOR_CLIENT, ">> ", string(msgBytes))
 	return ac.conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
 
 func (ac *ArbitratorClient) Connect() {
-
+	config := ac.Config().(*ArbitratorClientConfig)
+	wsUrl := fmt.Sprintf("ws://%s/ws", config.Url())
 	for ac.conn == nil {
 		var err error
-		ac.conn, _, err = websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
+		ac.conn, _, err = websocket.DefaultDialer.Dial(wsUrl, nil)
 		if err != nil {
-			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not Connect to arbitrator, retrying in 1 second: %s", err))
+			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not Connect to arbitrator, retrying in 1 second: %s", err))
 			ac.conn = nil
 			time.Sleep(time.Second)
 		}
 	}
+	ac.LogService.Log(ENV_ARBITRATOR_CLIENT, "successfully connected to arbitrator")
+	go ac.Dispatch(NewConnSuccessEvent())
 }
 
 func (ac *ArbitratorClient) ListenOnWebsocket() {
+	ac.LogService.Log(ENV_ARBITRATOR_CLIENT, "listening on arbitrator websocket connection...")
 	for {
 		_, rawMsg, readErr := ac.conn.ReadMessage()
 		if readErr != nil {
-			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
+			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
 			// assume all readErrs are disconnects
 			ac.conn = nil
 			break
 		}
-		ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
+		ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
 
 		msg, unmarshalErr := models.UnmarshalToMessage(rawMsg)
 		if unmarshalErr != nil {
-			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
+			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
 			continue
 		}
 		handleMsgErr := ac.HandleMsg(msg)
 		if handleMsgErr != nil {
-			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
+			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
 			continue
 		}
 	}

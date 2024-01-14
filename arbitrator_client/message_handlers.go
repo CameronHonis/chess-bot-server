@@ -3,7 +3,6 @@ package arbitrator_client
 import (
 	"fmt"
 	mainMods "github.com/CameronHonis/chess-arbitrator/models"
-	"github.com/CameronHonis/chess-bot-server/models"
 	"os"
 )
 
@@ -42,7 +41,7 @@ func (ac *ArbitratorClient) HandleAuthMessage(msg *mainMods.Message) error {
 	}
 	authUpgradeErr := RequestAuthUpgrade(ac.SendMessage, botSecret)
 	if authUpgradeErr != nil {
-		ac.LogService.LogRed(models.ENV_ARBITRATOR_CLIENT, "could not send upgrade auth request: ",
+		ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, "could not send upgrade auth request: ",
 			authUpgradeErr.Error())
 	}
 	return nil

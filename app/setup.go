@@ -2,29 +2,32 @@ package app
 
 import (
 	arbc "github.com/CameronHonis/chess-bot-server/arbitrator_client"
-	"github.com/CameronHonis/chess-bot-server/bot_manager"
-	"github.com/CameronHonis/chess-bot-server/models"
+	botmgr "github.com/CameronHonis/chess-bot-server/bot_manager"
 	"github.com/CameronHonis/log"
 )
 
 func LoggerConfig() *log.LoggerConfig {
 	logConfigBuilder := log.NewConfigBuilder()
-	logConfigBuilder.WithDecorator(models.ENV_ARBITRATOR_CLIENT, log.WrapGreen)
-	logConfigBuilder.WithDecorator(models.ENV_BOT_CLIENT, log.WrapBlue)
-	logConfigBuilder.WithDecorator(models.ENV_BOT_CLIENT_MANAGER, log.WrapCyan)
+	logConfigBuilder.WithDecorator(arbc.ENV_ARBITRATOR_CLIENT, log.WrapGreen)
+	logConfigBuilder.WithDecorator(botmgr.ENV_BOT_CLIENT, log.WrapBlue)
+	logConfigBuilder.WithDecorator(botmgr.ENV_BOT_MANAGER, log.WrapCyan)
 	//logConfigBuilder.WithMutedEnv("arbitrator_client")
 	//logConfigBuilder.WithMutedEnv("bot_manager")
 
 	return logConfigBuilder.Build()
 }
 
+func ArbitratorClientConfig() *arbc.ArbitratorClientConfig {
+	return arbc.NewArbitratorClientConfig("secret", "127.0.0.1:8080")
+}
+
 func Setup() *AppService {
 	logService := log.NewLoggerService(LoggerConfig())
 
-	botManager := bot_manager.NewBotManager(bot_manager.NewBotManagerConfig())
+	botManager := botmgr.NewBotManager(botmgr.NewBotManagerConfig())
 	botManager.AddDependency(logService)
 
-	arbClient := arbc.NewArbitratorClient(arbc.NewArbitratorClientConfig())
+	arbClient := arbc.NewArbitratorClient(ArbitratorClientConfig())
 	arbClient.AddDependency(botManager)
 	arbClient.AddDependency(logService)
 
