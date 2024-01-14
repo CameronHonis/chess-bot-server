@@ -10,6 +10,8 @@ replace github.com/CameronHonis/log => ../log
 
 replace github.com/CameronHonis/set => ../set
 
+replace github.com/CameronHonis/service => ../service
+
 require (
 	github.com/CameronHonis/chess v0.0.0-20231109054928-c290d2362c29
 	github.com/CameronHonis/chess-arbitrator v0.0.0-20240110015316-4a97d4b1cfa3

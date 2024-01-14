@@ -10,6 +10,6 @@ func main() {
 	wg.Add(1)
 
 	appService := app.Setup()
-	appService.ArbitratorClient.
-		wg.Wait()
+	appService.Start()
+	wg.Wait()
 }

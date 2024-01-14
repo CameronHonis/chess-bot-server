@@ -30,5 +30,6 @@ func Setup() *AppService {
 
 	appService := NewAppService(NewAppServiceConfig())
 	appService.AddDependency(arbClient)
+
 	return appService
 }

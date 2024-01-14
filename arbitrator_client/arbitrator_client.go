@@ -37,6 +37,13 @@ func NewArbitratorClient(config *ArbitratorClientConfig) *ArbitratorClient {
 	return s
 }
 
+func (ac *ArbitratorClient) OnStart() {
+	for {
+		ac.Connect()
+		ac.ListenOnWebsocket()
+	}
+}
+
 func (ac *ArbitratorClient) PublicKey() models.Key {
 	return ac.pubKey
 }
@@ -55,6 +62,7 @@ func (ac *ArbitratorClient) SendMessage(msg *models.Message) error {
 }
 
 func (ac *ArbitratorClient) Connect() {
+
 	for ac.conn == nil {
 		var err error
 		ac.conn, _, err = websocket.DefaultDialer.Dial("ws://localhost:8080/ws", nil)
@@ -68,27 +76,24 @@ func (ac *ArbitratorClient) Connect() {
 
 func (ac *ArbitratorClient) ListenOnWebsocket() {
 	for {
-		ac.Connect()
-		for {
-			_, rawMsg, readErr := ac.conn.ReadMessage()
-			if readErr != nil {
-				ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
-				// assume all readErrs are disconnects
-				ac.conn = nil
-				break
-			}
-			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
+		_, rawMsg, readErr := ac.conn.ReadMessage()
+		if readErr != nil {
+			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
+			// assume all readErrs are disconnects
+			ac.conn = nil
+			break
+		}
+		ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
 
-			msg, unmarshalErr := models.UnmarshalToMessage(rawMsg)
-			if unmarshalErr != nil {
-				ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
-				continue
-			}
-			handleMsgErr := ac.HandleMsg(msg)
-			if handleMsgErr != nil {
-				ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
-				continue
-			}
+		msg, unmarshalErr := models.UnmarshalToMessage(rawMsg)
+		if unmarshalErr != nil {
+			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
+			continue
+		}
+		handleMsgErr := ac.HandleMsg(msg)
+		if handleMsgErr != nil {
+			ac.LogService.Log(mods.ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
+			continue
 		}
 	}
 }
