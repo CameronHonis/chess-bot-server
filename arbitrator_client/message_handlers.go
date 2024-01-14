@@ -2,36 +2,36 @@ package arbitrator_client
 
 import (
 	"fmt"
-	"github.com/CameronHonis/chess-arbitrator/models"
-	"github.com/CameronHonis/chess-bot-server/app"
+	mainMods "github.com/CameronHonis/chess-arbitrator/models"
+	"github.com/CameronHonis/chess-bot-server/models"
 	"os"
 )
 
-func (ac *ArbitratorClient) HandleMsg(msg *models.Message) error {
+func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 	switch msg.ContentType {
-	case models.CONTENT_TYPE_AUTH:
+	case mainMods.CONTENT_TYPE_AUTH:
 		return ac.HandleAuthMessage(msg)
-	case models.CONTENT_TYPE_MATCH_UPDATE:
+	case mainMods.CONTENT_TYPE_MATCH_UPDATE:
 		return ac.HandleMatchUpdateMessage(msg)
-	case models.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
+	case mainMods.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
 		return ac.HandleUpgradeAuthDeniedMessage(msg)
-	case models.CONTENT_TYPE_UPGRADE_AUTH_GRANTED:
+	case mainMods.CONTENT_TYPE_UPGRADE_AUTH_GRANTED:
 		return ac.HandleAuthUpgradeGrantedMessage(msg)
-	case models.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
+	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
 		return ac.HandleSubscribeDeniedMessage(msg)
-	case models.CONTENT_TYPE_CHALLENGE_PLAYER:
+	case mainMods.CONTENT_TYPE_CHALLENGE_PLAYER:
 		return ac.HandleChallengePlayerMessage(msg)
-	case models.CONTENT_TYPE_SUBSCRIBE_REQUEST_GRANTED:
+	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_GRANTED:
 		return nil
-	case models.CONTENT_TYPE_MOVE:
+	case mainMods.CONTENT_TYPE_MOVE:
 		return nil
 	default:
 		return fmt.Errorf("unhandled message with content type %s", msg.ContentType)
 	}
 }
 
-func (ac *ArbitratorClient) HandleAuthMessage(msg *models.Message) error {
-	content, ok := msg.Content.(*models.AuthMessageContent)
+func (ac *ArbitratorClient) HandleAuthMessage(msg *mainMods.Message) error {
+	content, ok := msg.Content.(*mainMods.AuthMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to AuthMessageContent")
 	}
@@ -40,25 +40,25 @@ func (ac *ArbitratorClient) HandleAuthMessage(msg *models.Message) error {
 	if !ok {
 		panic("could not determine bot client secret")
 	}
-	authUpgradeErr := ac.RequestAuthUpgrade(botSecret)
+	authUpgradeErr := RequestAuthUpgrade(ac.SendMessage, botSecret)
 	if authUpgradeErr != nil {
-		ac.LogService.LogRed(app.ENV_ARBITRATOR_CLIENT, "could not send upgrade auth request: ",
+		ac.LogService.LogRed(models.ENV_ARBITRATOR_CLIENT, "could not send upgrade auth request: ",
 			authUpgradeErr.Error())
 	}
 	return nil
 }
 
-func (ac *ArbitratorClient) HandleAuthUpgradeGrantedMessage(msg *models.Message) error {
+func (ac *ArbitratorClient) HandleAuthUpgradeGrantedMessage(msg *mainMods.Message) error {
 	//return GetArbitratorClient().RequestSubscribe("findBotMatch")
 	return nil
 }
 
-func (ac *ArbitratorClient) HandleUpgradeAuthDeniedMessage(msg *models.Message) error {
+func (ac *ArbitratorClient) HandleUpgradeAuthDeniedMessage(msg *mainMods.Message) error {
 	panic("arbitrator denied bot client auth")
 }
 
-func (ac *ArbitratorClient) HandleSubscribeDeniedMessage(msg *models.Message) error {
-	content, ok := msg.Content.(*models.SubscribeRequestDeniedMessageContent)
+func (ac *ArbitratorClient) HandleSubscribeDeniedMessage(msg *mainMods.Message) error {
+	content, ok := msg.Content.(*mainMods.SubscribeRequestDeniedMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to SubscribeRequestDeniedMessageContent")
 	}
@@ -66,19 +66,23 @@ func (ac *ArbitratorClient) HandleSubscribeDeniedMessage(msg *models.Message) er
 	panic(fmt.Sprintf("arbitrator denied bot client subscription%s", content.Topic))
 }
 
-func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *models.Message) error {
-	content, ok := msg.Content.(*models.MatchUpdateMessageContent)
+func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *mainMods.Message) error {
+	content, ok := msg.Content.(*mainMods.MatchUpdateMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to MatchUpdateMessageContent")
 	}
 
 	match := content.Match
+	botClient, botClientErr := ac.BotMngr.ClientByMatch(match)
+	if botClientErr != nil {
+		return botClientErr
+	}
+
 	if match.Board.IsTerminal {
-		removeErr := ac.BotMngr.RemoveBotClient(match)
+		removeErr := ac.BotMngr.RemoveClient(botClient.Key())
 		if removeErr != nil {
-			ac.LogService.LogRed(app.ENV_ARBITRATOR_CLIENT, "could not remove bot client: ", removeErr.Error())
+			return removeErr
 		}
-		return nil
 	}
 
 	if match.Board.IsWhiteTurn && match.BlackClientKey == ac.PublicKey() {
@@ -87,27 +91,24 @@ func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *models.Message) error 
 		return nil
 	}
 
-	botClient, botClientErr := ac.BotMngr.BotClientFromMatchId(match.Uuid)
-	if botClientErr != nil {
-		return botClientErr
-	}
 	move, moveErr := botClient.Engine().GenerateMove(match)
 	if moveErr != nil {
 		return moveErr
 	}
-	return ac.SendMove(match.Uuid, move)
+	return SendMove(ac.SendMessage, match.Uuid, move)
 }
 
-func (ac *ArbitratorClient) HandleChallengePlayerMessage(msg *models.Message) error {
-	content, ok := msg.Content.(*models.ChallengePlayerMessageContent)
+func (ac *ArbitratorClient) HandleChallengePlayerMessage(msg *mainMods.Message) error {
+	content, ok := msg.Content.(*mainMods.ChallengePlayerMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to ChallengerPlayerMessageContent")
 	}
 
 	challenge := content.Challenge
-	botInitErr := ac.BotMngr.AddNewBotClient(challenge., challenge.ChallengedKey)
+	_, botInitErr := ac.BotMngr.InitBotClient(challenge.BotName, challenge.ChallengerKey)
 	if botInitErr != nil {
-		_ = GetArbitratorClient().FailInitBotRequest(matchId, botName, botInitErr.Error())
-		return botInitErr
+		return DeclineChallengeRequest(ac.SendMessage, msg.Topic, challenge.ChallengerKey)
 	}
+
+	return AcceptChallengeRequest(ac.SendMessage, msg.Topic, challenge.ChallengerKey)
 }

@@ -1,7 +1,7 @@
 package bot_manager
 
 import (
-	"github.com/CameronHonis/chess-arbitrator/helpers"
+	"github.com/CameronHonis/chess-arbitrator/auth"
 	"github.com/CameronHonis/chess-arbitrator/models"
 	"github.com/CameronHonis/chess-bot-server/engines"
 )
@@ -21,7 +21,7 @@ func NewLocalBotClient(engineName string) (BotClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	pubKey, _ := helpers.GenerateKeyset()
+	pubKey, _ := auth.GenerateKeyset()
 	botClient := &LocalBotClient{
 		key:    pubKey,
 		engine: engine,

@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/CameronHonis/chess-bot-server/arbitrator_client"
-	"github.com/CameronHonis/chess-bot-server/bot_manager"
 	. "github.com/CameronHonis/marker"
 	"github.com/CameronHonis/service"
 )
@@ -15,7 +14,6 @@ type AppService struct {
 	service.Service
 	__dependencies__ Marker
 	ArbitratorClient arbitrator_client.ArbitratorClientI
-	BotClient        bot_manager.BotClientI
 
 	__state__ Marker
 }
