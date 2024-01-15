@@ -9,11 +9,12 @@ import (
 
 type Sender func(msg *models.Message) error
 
-func RequestAuthUpgrade(send Sender, secret string) error {
+func RequestAuthUpgrade(send Sender, role models.RoleName, secret string) error {
 	msg := &models.Message{
 		Topic:       "",
 		ContentType: models.CONTENT_TYPE_UPGRADE_AUTH_REQUEST,
 		Content: &models.UpgradeAuthRequestMessageContent{
+			Role:   role,
 			Secret: secret,
 		},
 	}

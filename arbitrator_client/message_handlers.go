@@ -15,7 +15,7 @@ func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 	case mainMods.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
 		return ac.HandleUpgradeAuthDeniedMessage(msg)
 	case mainMods.CONTENT_TYPE_UPGRADE_AUTH_GRANTED:
-		return ac.HandleAuthUpgradeGrantedMessage(msg)
+		return ac.HandleUpgradeAuthGrantedMessage(msg)
 	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
 		return ac.HandleSubscribeDeniedMessage(msg)
 	case mainMods.CONTENT_TYPE_CHALLENGE_PLAYER:
@@ -39,7 +39,7 @@ func (ac *ArbitratorClient) HandleAuthMessage(msg *mainMods.Message) error {
 	if !ok {
 		panic("could not determine bot client secret")
 	}
-	authUpgradeErr := RequestAuthUpgrade(ac.SendMessage, botSecret)
+	authUpgradeErr := RequestAuthUpgrade(ac.SendMessage, mainMods.BOT, botSecret)
 	if authUpgradeErr != nil {
 		ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, "could not send upgrade auth request: ",
 			authUpgradeErr.Error())
@@ -47,7 +47,7 @@ func (ac *ArbitratorClient) HandleAuthMessage(msg *mainMods.Message) error {
 	return nil
 }
 
-func (ac *ArbitratorClient) HandleAuthUpgradeGrantedMessage(msg *mainMods.Message) error {
+func (ac *ArbitratorClient) HandleUpgradeAuthGrantedMessage(msg *mainMods.Message) error {
 	//return GetArbitratorClient().RequestSubscribe("findBotMatch")
 	return nil
 }

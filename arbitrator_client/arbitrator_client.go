@@ -35,7 +35,6 @@ type ArbitratorClient struct {
 func NewArbitratorClient(config *ArbitratorClientConfig) *ArbitratorClient {
 	s := &ArbitratorClient{}
 	s.Service = *service.NewService(s, config)
-	s.AddEventListener(CONN_SUCCESS, s.OnConnect)
 	return s
 }
 
@@ -59,7 +58,7 @@ func (ac *ArbitratorClient) SendMessage(msg *models.Message) error {
 	if marshalErr != nil {
 		return marshalErr
 	}
-	ac.LogService.Log(ENV_ARBITRATOR_CLIENT, ">> ", string(msgBytes))
+	ac.LogService.Log(ENV_ARBITRATOR_CLIENT, "<< ", string(msgBytes))
 	return ac.conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
 
@@ -89,7 +88,7 @@ func (ac *ArbitratorClient) ListenOnWebsocket() {
 			ac.conn = nil
 			break
 		}
-		ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("received message from arbitrator: %s", string(rawMsg)))
+		ac.LogService.Log(ENV_ARBITRATOR_CLIENT, ">> ", string(rawMsg))
 
 		msg, unmarshalErr := models.UnmarshalToMessage(rawMsg)
 		if unmarshalErr != nil {
