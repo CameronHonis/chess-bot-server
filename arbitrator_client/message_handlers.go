@@ -18,8 +18,8 @@ func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 		return ac.HandleUpgradeAuthGrantedMessage(msg)
 	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
 		return ac.HandleSubscribeDeniedMessage(msg)
-	case mainMods.CONTENT_TYPE_CHALLENGE_PLAYER:
-		return ac.HandleChallengePlayerMessage(msg)
+	case mainMods.CONTENT_TYPE_CHALLENGE_REQUEST:
+		return ac.HandleChallengeRequestMessage(msg)
 	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_GRANTED:
 		return nil
 	case mainMods.CONTENT_TYPE_MOVE:
@@ -97,7 +97,7 @@ func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *mainMods.Message) erro
 	return SendMove(ac.SendMessage, match.Uuid, move)
 }
 
-func (ac *ArbitratorClient) HandleChallengePlayerMessage(msg *mainMods.Message) error {
+func (ac *ArbitratorClient) HandleChallengeRequestMessage(msg *mainMods.Message) error {
 	content, ok := msg.Content.(*mainMods.ChallengePlayerMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to ChallengerPlayerMessageContent")
