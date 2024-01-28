@@ -83,7 +83,7 @@ func (ac *ArbitratorClient) ListenOnWebsocket() {
 	for {
 		_, rawMsg, readErr := ac.conn.ReadMessage()
 		if readErr != nil {
-			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
+			ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("error reading message from websocket: %s", readErr))
 			// assume all readErrs are disconnects
 			ac.conn = nil
 			break
@@ -92,12 +92,12 @@ func (ac *ArbitratorClient) ListenOnWebsocket() {
 
 		msg, unmarshalErr := models.UnmarshalToMessage(rawMsg)
 		if unmarshalErr != nil {
-			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
+			ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not unmarshal message: %s", unmarshalErr))
 			continue
 		}
 		handleMsgErr := ac.HandleMsg(msg)
 		if handleMsgErr != nil {
-			ac.LogService.Log(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
+			ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, fmt.Sprintf("could not handle message: %s", handleMsgErr))
 			continue
 		}
 	}

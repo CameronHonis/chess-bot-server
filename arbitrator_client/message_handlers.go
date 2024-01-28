@@ -10,7 +10,7 @@ func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 	switch msg.ContentType {
 	case mainMods.CONTENT_TYPE_AUTH:
 		return ac.HandleAuthMessage(msg)
-	case mainMods.CONTENT_TYPE_MATCH_UPDATE:
+	case mainMods.CONTENT_TYPE_MATCH_UPDATED:
 		return ac.HandleMatchUpdateMessage(msg)
 	case mainMods.CONTENT_TYPE_UPGRADE_AUTH_DENIED:
 		return ac.HandleUpgradeAuthDeniedMessage(msg)
@@ -18,8 +18,8 @@ func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 		return ac.HandleUpgradeAuthGrantedMessage(msg)
 	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_DENIED:
 		return ac.HandleSubscribeDeniedMessage(msg)
-	case mainMods.CONTENT_TYPE_CHALLENGE_REQUEST:
-		return ac.HandleChallengeRequestMessage(msg)
+	case mainMods.CONTENT_TYPE_CHALLENGE_UPDATED:
+		return HandleChallengeUpdatedMessage(ac, msg)
 	case mainMods.CONTENT_TYPE_SUBSCRIBE_REQUEST_GRANTED:
 		return nil
 	case mainMods.CONTENT_TYPE_MOVE:
@@ -97,12 +97,17 @@ func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *mainMods.Message) erro
 	return SendMove(ac.SendMessage, match.Uuid, move)
 }
 
-func (ac *ArbitratorClient) HandleChallengeRequestMessage(msg *mainMods.Message) error {
-	content, ok := msg.Content.(*mainMods.ChallengePlayerMessageContent)
+var HandleChallengeUpdatedMessage = func(ac *ArbitratorClient, msg *mainMods.Message) error {
+	content, ok := msg.Content.(*mainMods.ChallengeUpdatedMessageContent)
 	if !ok {
 		return fmt.Errorf("could not cast message to ChallengerPlayerMessageContent")
 	}
 
+	if content.Challenge == nil {
+		return nil
+	}
+
+	// NOTE: assumes that only update to challenge is when challenge is created
 	challenge := content.Challenge
 	_, botInitErr := ac.BotMngr.InitBotClient(challenge.BotName, challenge.ChallengerKey)
 	if botInitErr != nil {

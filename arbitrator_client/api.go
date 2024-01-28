@@ -35,8 +35,8 @@ func RequestSubscribe(send Sender, topic models.MessageTopic) error {
 func DeclineChallengeRequest(send Sender, topic models.MessageTopic, challengerKey mods.PlrClientKey) error {
 	msg := &models.Message{
 		Topic:       topic,
-		ContentType: models.CONTENT_TYPE_CHALLENGE_DECLINED,
-		Content: &models.ChallengeDeclinedMessageContent{
+		ContentType: models.CONTENT_TYPE_DECLINE_CHALLENGE,
+		Content: &models.DeclineChallengeMessageContent{
 			ChallengerClientKey: challengerKey,
 		},
 	}
@@ -46,8 +46,8 @@ func DeclineChallengeRequest(send Sender, topic models.MessageTopic, challengerK
 func AcceptChallengeRequest(send Sender, topic models.MessageTopic, challengerKey mods.PlrClientKey) error {
 	msg := &models.Message{
 		Topic:       topic,
-		ContentType: models.CONTENT_TYPE_CHALLENGE_ACCEPTED,
-		Content: &models.ChallengeAcceptedMessageContent{
+		ContentType: models.CONTENT_TYPE_ACCEPT_CHALLENGE,
+		Content: &models.AcceptChallengeMessageContent{
 			ChallengerClientKey: challengerKey,
 		},
 	}
