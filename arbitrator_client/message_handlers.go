@@ -24,6 +24,12 @@ func (ac *ArbitratorClient) HandleMsg(msg *mainMods.Message) error {
 		return nil
 	case mainMods.CONTENT_TYPE_MOVE:
 		return nil
+	case mainMods.CONTENT_TYPE_ACCEPT_CHALLENGE:
+		return nil
+	case mainMods.CONTENT_TYPE_DECLINE_CHALLENGE:
+		return nil
+	case mainMods.CONTENT_TYPE_REVOKE_CHALLENGE:
+		return nil
 	default:
 		return fmt.Errorf("unhandled message with content type %s", msg.ContentType)
 	}
@@ -77,7 +83,7 @@ func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *mainMods.Message) erro
 		return botClientErr
 	}
 
-	if match.Board.IsTerminal {
+	if match.Result != mainMods.MATCH_RESULT_IN_PROGRESS {
 		removeErr := ac.BotMngr.RemoveClient(botClient.Key())
 		if removeErr != nil {
 			return removeErr
