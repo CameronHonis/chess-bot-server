@@ -1,9 +1,11 @@
 package app
 
 import (
+	"fmt"
 	arbc "github.com/CameronHonis/chess-bot-server/arbitrator_client"
 	botmgr "github.com/CameronHonis/chess-bot-server/bot_manager"
 	"github.com/CameronHonis/log"
+	"os"
 )
 
 func LoggerConfig() *log.LoggerConfig {
@@ -18,7 +20,15 @@ func LoggerConfig() *log.LoggerConfig {
 }
 
 func ArbitratorClientConfig() *arbc.ArbitratorClientConfig {
-	return arbc.NewArbitratorClientConfig("secret", "127.0.0.1:8080")
+	domainVal, domainExists := os.LookupEnv("ARBITRATOR_DOMAIN")
+	if !domainExists {
+		domainVal = "127.0.0.1"
+	}
+	portVal, portExists := os.LookupEnv("ARBITRATOR_PORT")
+	if !portExists {
+		portVal = "8080"
+	}
+	return arbc.NewArbitratorClientConfig("secret", fmt.Sprint("%s:%s", domainVal, portVal))
 }
 
 func Setup() *AppService {
