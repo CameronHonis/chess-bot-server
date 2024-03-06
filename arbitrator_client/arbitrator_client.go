@@ -38,6 +38,10 @@ func NewArbitratorClient(config *ArbitratorClientConfig) *ArbitratorClient {
 	return s
 }
 
+func (ac *ArbitratorClient) OnBuild() {
+	ac.AddEventListener(CONN_SUCCESS, OnConnSuccess)
+}
+
 func (ac *ArbitratorClient) OnStart() {
 	for {
 		ac.Connect()

@@ -9,6 +9,17 @@ import (
 
 type Sender func(msg *models.Message) error
 
+func RefreshAuthCreds(send Sender) error {
+	msg := &models.Message{
+		Topic:       "",
+		ContentType: models.CONTENT_TYPE_REFRESH_AUTH,
+		Content: &models.RefreshAuthMessageContent{
+			ExistingAuth: nil,
+		},
+	}
+	return send(msg)
+}
+
 func RequestAuthUpgrade(send Sender, role models.RoleName, secret string) error {
 	msg := &models.Message{
 		Topic:       "",
