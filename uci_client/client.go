@@ -35,7 +35,7 @@ func (c *Client) Init(ctx context.Context) (*set.Set[string], error) {
 		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
 
-	resp, readErr := waitForEngineRes(ctx, c.r)
+	resp, readErr := waitForEngineResp(ctx, c.r)
 	if readErr != nil {
 		return nil, readErr
 	}
@@ -65,7 +65,7 @@ func (c *Client) SetOption(optName string, optVal string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	resp, readErr := waitForEngineRes(ctx, c.r)
+	resp, readErr := waitForEngineResp(ctx, c.r)
 	if readErr != nil {
 		return nil
 	}
@@ -81,11 +81,26 @@ func (c *Client) SetPosition(fen string) error {
 	return nil
 }
 
+func (c *Client) IsReady(ctx context.Context) (bool, error) {
+	c.flushReader()
+
+	_, writeErr := c.w.Write([]byte("isready"))
+	if writeErr != nil {
+		return false, fmt.Errorf("could not write to uci client %s", writeErr)
+	}
+
+	resp, readErr := waitForEngineResp(ctx, c.r)
+	if readErr != nil {
+		return false, readErr
+	}
+	return resp == "readyok", nil
+}
+
 func (c *Client) flushReader() {
 	_, _ = io.ReadAll(c.r)
 }
 
-func waitForEngineRes(ctx context.Context, r io.Reader) (string, error) {
+func waitForEngineResp(ctx context.Context, r io.Reader) (string, error) {
 	var bytes []byte
 	for len(bytes) == 0 {
 		select {

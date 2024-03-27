@@ -60,6 +60,8 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 		return m.out.Write([]byte("No such option: NotAnOption"))
 	case "position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1":
 		return 0, nil
+	case "isready":
+		return m.out.Write([]byte("readyok"))
 	default:
 		return 0, fmt.Errorf("unknown command")
 	}
@@ -138,6 +140,28 @@ var _ = Describe("Client", func() {
 		When("the option name is invalid", func() {
 			It("returns an error", func() {
 				Expect(client.SetOption("NotAnOption", "some-value")).ToNot(Succeed())
+			})
+		})
+	})
+	Describe("::IsReady", func() {
+		var ctx context.Context
+		var cancelCtx context.CancelFunc
+		BeforeEach(func() {
+			mockReader, mockWriter := MockReaderWriter(10 * time.Millisecond)
+			client = uci_client.NewUciClient(mockReader, mockWriter)
+			initCtx, cancelInitCtx := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			_, err := client.Init(initCtx)
+			Expect(err).ToNot(HaveOccurred())
+			cancelInitCtx()
+
+			ctx, cancelCtx = context.WithTimeout(context.Background(), 100*time.Millisecond)
+		})
+		AfterEach(func() {
+			cancelCtx()
+		})
+		When("the engine is ready", func() {
+			It("returns true", func() {
+				Expect(client.IsReady(ctx)).To(BeTrue())
 			})
 		})
 	})
