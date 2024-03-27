@@ -50,6 +50,14 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 			//"option name EvalFile type string default nn-1ceb1ade0001.nnue\n" +
 			//"option name EvalFileSmall type string default nn-baff1ede1f90.nnue\n" +
 			"uciok\n"))
+	case "setoption name Threads value 2":
+		return 0, nil
+	case "setoption name Threads value asdf":
+		return m.out.Write([]byte("terminate called after throwing an instance of 'std::invalid_argument'\n" +
+			"  what():  stof\n" +
+			"Aborted (core dumped)\n"))
+	case "setoption name NotAnOption value some-value":
+		return m.out.Write([]byte("No such option: NotAnOption"))
 	default:
 		return 0, fmt.Errorf("unknown command")
 	}
@@ -101,6 +109,33 @@ var _ = Describe("Client", func() {
 				_, err := client.Init(ctx)
 				fmt.Println(err)
 				Expect(err).ToNot(Succeed())
+			})
+		})
+	})
+	Describe("::SetOption", func() {
+		BeforeEach(func() {
+			mockReader, mockWriter := MockReaderWriter(10 * time.Millisecond)
+			client = uci_client.NewUciClient(mockReader, mockWriter)
+			ctx, cancelCtx := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			_, err := client.Init(ctx)
+			Expect(err).ToNot(HaveOccurred())
+			cancelCtx()
+		})
+		When("the option name is valid", func() {
+			When("the value is valid", func() {
+				It("does not return an error", func() {
+					Expect(client.SetOption("Threads", "2")).To(Succeed())
+				})
+			})
+			When("the value is invalid", func() {
+				It("returns an error", func() {
+					Expect(client.SetOption("Threads", "asdf")).ToNot(Succeed())
+				})
+			})
+		})
+		When("the option name is invalid", func() {
+			It("returns an error", func() {
+				Expect(client.SetOption("NotAnOption", "some-value")).ToNot(Succeed())
 			})
 		})
 	})

@@ -6,6 +6,7 @@ import (
 	"github.com/CameronHonis/set"
 	"io"
 	"strings"
+	"time"
 )
 
 // Client represents a client for any engine supporting UCI (Universal Chess Interface)
@@ -27,13 +28,14 @@ func NewUciClient(r io.Reader, w io.Writer) *Client {
 
 // Init tells the engine to use the uci protocol and stores the configurable options.
 // It returns the set of options that are configurable.
-func (u *Client) Init(ctx context.Context) (*set.Set[string], error) {
-	_, writeErr := u.w.Write([]byte("uci"))
+func (c *Client) Init(ctx context.Context) (*set.Set[string], error) {
+	c.flushReader()
+	_, writeErr := c.w.Write([]byte("uci"))
 	if writeErr != nil {
 		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
 
-	resp, readErr := waitForEngineRes(ctx, u.r)
+	resp, readErr := waitForEngineRes(ctx, c.r)
 	if readErr != nil {
 		return nil, readErr
 	}
@@ -42,18 +44,38 @@ func (u *Client) Init(ctx context.Context) (*set.Set[string], error) {
 		if strings.HasPrefix(line, "option name") {
 			optionDetails := line[len("option name "):]
 			optionName := strings.Split(optionDetails, " ")[0]
-			u.opts.Add(optionName)
+			c.opts.Add(optionName)
 		}
 	}
 
-	return u.opts.Copy(), nil
+	return c.opts.Copy(), nil
 }
 
-func (u *Client) IsOption(optName string) bool {
-	return u.opts.Has(optName)
+func (c *Client) IsOption(optName string) bool {
+	return c.opts.Has(optName)
 }
 
-//func (u *Client) SetOption()
+func (c *Client) SetOption(optName string, optVal string) error {
+	c.flushReader()
+
+	_, writeErr := c.w.Write([]byte(fmt.Sprintf("setoption name %s value %s", optName, optVal)))
+	if writeErr != nil {
+		return fmt.Errorf("could not write to uci client: %s", writeErr)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	resp, readErr := waitForEngineRes(ctx, c.r)
+	if readErr != nil {
+		return nil
+	}
+
+	return fmt.Errorf("error setting option: %s", resp)
+}
+
+func (c *Client) flushReader() {
+	_, _ = io.ReadAll(c.r)
+}
 
 func waitForEngineRes(ctx context.Context, r io.Reader) (string, error) {
 	var bytes []byte
