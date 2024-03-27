@@ -1,13 +1,15 @@
-package random
+package stockfish
 
 import (
 	"fmt"
 	"github.com/CameronHonis/chess"
 	"github.com/CameronHonis/chess-arbitrator/models"
 	"math/rand"
+	"os/exec"
 )
 
 type Engine struct {
+	cmd *exec.Cmd
 }
 
 func (re *Engine) Initialize(match *models.Match) {
