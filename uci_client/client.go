@@ -32,27 +32,19 @@ func (u *Client) Init(ctx context.Context) (*set.Set[string], error) {
 		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
 
-	done := make(chan bool)
-	stop := make(chan bool)
 	var bytes []byte
-	var readErr error
 
-	go func(stop chan bool) {
-		for {
+	for len(bytes) == 0 {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx finished before engine response")
+		default:
+			var readErr error
 			bytes, readErr = io.ReadAll(u.r)
+			if readErr != nil {
+				return nil, fmt.Errorf("could not read from uci client: %s", readErr)
+			}
 		}
-		bytes, readErr = io.ReadAll(u.r)
-		done <- true
-	}(stop)
-
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return nil, fmt.Errorf("timeout expired before uci client got response to 'uci'")
-	}
-
-	if readErr != nil {
-		return nil, fmt.Errorf("could not read from uci client: %s", readErr)
 	}
 
 	contents := string(bytes)

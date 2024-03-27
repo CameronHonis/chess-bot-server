@@ -87,8 +87,9 @@ var _ = Describe("Client", func() {
 				readBuf := bytes.Buffer{}
 				client = uci_client.NewUciClient(&readBuf, &writeBuf)
 			})
-			FIt("returns an error", func() {
+			It("returns an error", func() {
 				_, err := client.Init(ctx)
+				fmt.Println(err)
 				Expect(err).ToNot(Succeed())
 			})
 		})
