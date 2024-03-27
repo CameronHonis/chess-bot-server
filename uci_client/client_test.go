@@ -80,6 +80,16 @@ var _ = Describe("Client", func() {
 				_, err := client.Init(ctx)
 				Expect(err).To(Succeed())
 			})
+			It("saves the configurable options", func() {
+				_, _ = client.Init(ctx)
+				Expect(client.IsOption("Threads")).To(BeTrue())
+				Expect(client.IsOption("Ponder")).To(BeTrue())
+				Expect(client.IsOption("NotAnOption")).ToNot(BeTrue())
+			})
+			It("returns the configurable options", func() {
+				opts, _ := client.Init(ctx)
+				Expect(opts).ToNot(BeNil())
+			})
 		})
 		When("the engine does not respond to 'uci'", func() {
 			BeforeEach(func() {

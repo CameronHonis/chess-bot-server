@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/CameronHonis/set"
 	"io"
+	"strings"
 )
 
 // Client represents a client for any engine supporting UCI (Universal Chess Interface)
@@ -32,26 +33,41 @@ func (u *Client) Init(ctx context.Context) (*set.Set[string], error) {
 		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
 
-	var bytes []byte
+	resp, readErr := waitForEngineRes(ctx, u.r)
+	if readErr != nil {
+		return nil, readErr
+	}
 
-	for len(bytes) == 0 {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx finished before engine response")
-		default:
-			var readErr error
-			bytes, readErr = io.ReadAll(u.r)
-			if readErr != nil {
-				return nil, fmt.Errorf("could not read from uci client: %s", readErr)
-			}
+	for _, line := range strings.Split(resp, "\n") {
+		if strings.HasPrefix(line, "option name") {
+			optionDetails := line[len("option name "):]
+			optionName := strings.Split(optionDetails, " ")[0]
+			u.opts.Add(optionName)
 		}
 	}
 
-	contents := string(bytes)
-	fmt.Println(contents)
+	return u.opts.Copy(), nil
+}
 
-	return set.EmptySet[string](), nil
-
+func (u *Client) IsOption(optName string) bool {
+	return u.opts.Has(optName)
 }
 
 //func (u *Client) SetOption()
+
+func waitForEngineRes(ctx context.Context, r io.Reader) (string, error) {
+	var bytes []byte
+	for len(bytes) == 0 {
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("ctx finished before engine response")
+		default:
+			var readErr error
+			bytes, readErr = io.ReadAll(r)
+			if readErr != nil {
+				return "", fmt.Errorf("could not read from uci client: %s", readErr)
+			}
+		}
+	}
+	return string(bytes), nil
+}
