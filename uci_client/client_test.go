@@ -58,6 +58,8 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 			"Aborted (core dumped)\n"))
 	case "setoption name NotAnOption value some-value":
 		return m.out.Write([]byte("No such option: NotAnOption"))
+	case "position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1":
+		return 0, nil
 	default:
 		return 0, fmt.Errorf("unknown command")
 	}

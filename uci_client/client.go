@@ -73,6 +73,14 @@ func (c *Client) SetOption(optName string, optVal string) error {
 	return fmt.Errorf("error setting option: %s", resp)
 }
 
+func (c *Client) SetPosition(fen string) error {
+	_, writeErr := c.w.Write([]byte(fmt.Sprintf("position fen %s", fen)))
+	if writeErr != nil {
+		return fmt.Errorf("could not write to uci client: %s", writeErr)
+	}
+	return nil
+}
+
 func (c *Client) flushReader() {
 	_, _ = io.ReadAll(c.r)
 }
