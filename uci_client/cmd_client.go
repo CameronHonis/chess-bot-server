@@ -9,6 +9,21 @@ import (
 	"time"
 )
 
+const DEFAULT_STDOUT_BUF_BYTE_SIZE = 4096
+
+type ByteDump []byte
+
+// String trims all null bytes from end of string
+func (b ByteDump) String() string {
+	var n = 0
+	for ; n < len(b); n++ {
+		if b[n] == 0 {
+			break
+		}
+	}
+	return string(b[:n])
+}
+
 // BlockingReader simply reads from the provided reader until no content is left, at which point it waits for more.
 type BlockingReader struct {
 	r   io.Reader
@@ -41,14 +56,23 @@ func (br *BlockingReader) Read(p []byte) (n int, err error) {
 	}
 }
 
+// CmdClient is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
 type CmdClient struct {
 	r           io.Reader
-	wc          io.WriteCloser
+	w           io.Writer
 	readBufSize uint
 }
 
-// NewCmdClient takes a **running** command
-func NewCmdClient(cmd exec.Cmd, readBufSize uint) (*CmdClient, error) {
+func NewCmdClient(r io.Reader, w io.Writer, readBufSize uint) *CmdClient {
+	return &CmdClient{
+		r:           r,
+		w:           w,
+		readBufSize: readBufSize,
+	}
+}
+
+// CmdClientFromCmd takes a running command
+func CmdClientFromCmd(cmd exec.Cmd) (*CmdClient, error) {
 	wc, openWriterErr := cmd.StdinPipe()
 
 	if openWriterErr != nil {
@@ -60,35 +84,50 @@ func NewCmdClient(cmd exec.Cmd, readBufSize uint) (*CmdClient, error) {
 		return nil, fmt.Errorf("cannot create CmdClient, coud not open reader to cmd: %s", openReaderErr)
 	}
 
-	return &CmdClient{r, wc, readBufSize}, nil
+	return &CmdClient{r, wc, DEFAULT_STDOUT_BUF_BYTE_SIZE}, nil
 }
 
 func (cc *CmdClient) Readlines(ctx context.Context, ch chan string) {
 	br := &BlockingReader{cc.r, ctx}
 	var carryLine string
 
-	p := make([]byte, cc.readBufSize)
 	for {
-		_, err := br.Read(p)
+		p := make(ByteDump, cc.readBufSize)
+		n, err := br.Read(p)
 		if err != nil {
 			close(ch)
 			break
 		}
-		lines := strings.Split(string(p), "\n")
-		if len(lines) > 0 {
-			if carryLine != "" {
+		lines := strings.Split(p.String(), "\n")
+
+		// handle last carryLine
+		if carryLine != "" {
+			if len(lines) == 0 {
+				lines = []string{fmt.Sprintf("%s", carryLine), ""}
+			} else {
 				lines[0] = fmt.Sprintf("%s%s", carryLine, lines[0])
 			}
-			endsWithNewline := lines[len(lines)-1] == ""
-			if !endsWithNewline {
-				carryLine = lines[len(lines)-1]
-				lines = lines[:len(lines)-1]
-			}
+			carryLine = ""
+		}
+		// set carryLine or trim empty string
+		endsWithNewline := lines[len(lines)-1] == ""
+		if n == int(cc.readBufSize) && !endsWithNewline {
+			carryLine = lines[len(lines)-1]
+			lines = lines[:len(lines)-1]
+		} else if endsWithNewline {
+			lines = lines[:len(lines)-1]
+		}
+		for _, line := range lines {
+			ch <- line
 		}
 	}
 }
 
 func (cc *CmdClient) WriteString(s string) error {
-	_, err := cc.wc.Write([]byte(s))
+	_, err := cc.w.Write([]byte(s))
 	return err
+}
+
+func (cc *CmdClient) SetBufSize(size uint) {
+	cc.readBufSize = size
 }
