@@ -24,40 +24,8 @@ func (b ByteDump) String() string {
 	return string(b[:n])
 }
 
-// BlockingReader simply reads from the provided reader until no content is left, at which point it waits for more.
-type BlockingReader struct {
-	r   io.Reader
-	ctx context.Context
-}
-
-func NewBlockingReader(r io.Reader, ctx context.Context) *BlockingReader {
-	return &BlockingReader{
-		r:   r,
-		ctx: ctx,
-	}
-}
-
-func (br *BlockingReader) Read(p []byte) (n int, err error) {
-	for {
-		select {
-		case <-br.ctx.Done():
-			return 0, fmt.Errorf("timeout before contents")
-		default:
-			n, err = br.r.Read(p)
-			if err != io.EOF {
-				return
-			}
-			readContent := n > 0
-			if readContent {
-				return
-			}
-			time.Sleep(time.Millisecond) // dont needlessly hog cpu
-		}
-	}
-}
-
-// CmdClient is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
-type CmdClient struct {
+// Client is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
+type Client struct {
 	__static__ marker.Marker
 	r          io.Reader
 	w          io.Writer
@@ -72,8 +40,8 @@ type CmdClient struct {
 	mu          sync.Mutex
 }
 
-func NewCmdClient(r io.Reader, w io.Writer) *CmdClient {
-	return &CmdClient{
+func NewClient(r io.Reader, w io.Writer) *Client {
+	return &Client{
 		r:             r,
 		w:             w,
 		_readBufSize:  4096,
@@ -84,26 +52,26 @@ func NewCmdClient(r io.Reader, w io.Writer) *CmdClient {
 	}
 }
 
-// CmdClientFromCmd expects a running command
-func CmdClientFromCmd(cmd *exec.Cmd) (*CmdClient, error) {
+// ClientFromCmd expects a running command
+func ClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 	if cmd.Process == nil {
-		return nil, fmt.Errorf("cmd must be running before creating CmdClient")
+		return nil, fmt.Errorf("cmd must be running before creating Client")
 	}
 
 	w, openWriterErr := cmd.StdinPipe()
 	if openWriterErr != nil {
-		return nil, fmt.Errorf("cannot create CmdClient, could not open writer to cmd: %s", openWriterErr)
+		return nil, fmt.Errorf("cannot create Client, could not open writer to cmd: %s", openWriterErr)
 	}
 
 	r, openReaderErr := cmd.StdoutPipe()
 	if openReaderErr != nil {
-		return nil, fmt.Errorf("cannot create CmdClient, coud not open reader to cmd: %s", openReaderErr)
+		return nil, fmt.Errorf("cannot create Client, coud not open reader to cmd: %s", openReaderErr)
 	}
 
-	return NewCmdClient(r, w), nil
+	return NewClient(r, w), nil
 }
 
-func (cc *CmdClient) ReadLine(ctx context.Context) (string, error) {
+func (cc *Client) ReadLine(ctx context.Context) (string, error) {
 	go cc.readLines(ctx)
 	for {
 		select {
@@ -119,7 +87,7 @@ func (cc *CmdClient) ReadLine(ctx context.Context) (string, error) {
 	}
 }
 
-func (cc *CmdClient) WriteString(s string) error {
+func (cc *Client) WriteString(s string) error {
 	if cc.flushOnWrite() {
 		cc.flushLines()
 	}
@@ -127,23 +95,23 @@ func (cc *CmdClient) WriteString(s string) error {
 	return err
 }
 
-func (cc *CmdClient) SetBufSize(size uint) {
+func (cc *Client) SetBufSize(size uint) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc._readBufSize = size
 }
 
-func (cc *CmdClient) SetFlushOnWrite(flushOnWrite bool) {
+func (cc *Client) SetFlushOnWrite(flushOnWrite bool) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc._flushOnWrite = flushOnWrite
 }
 
-func (cc *CmdClient) FlushReader() {
+func (cc *Client) FlushReader() {
 	cc.flushLines()
 }
 
-func (cc *CmdClient) readLines(ctx context.Context) {
+func (cc *Client) readLines(ctx context.Context) {
 	if cc.isReading() {
 		return
 	}
@@ -184,13 +152,13 @@ func (cc *CmdClient) readLines(ctx context.Context) {
 	cc.setIsReading(false)
 }
 
-func (cc *CmdClient) pushLines(lines ...string) {
+func (cc *Client) pushLines(lines ...string) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc._lines = append(cc._lines, lines...)
 }
 
-func (cc *CmdClient) popLine() (string, error) {
+func (cc *Client) popLine() (string, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	if len(cc._lines) == 0 {
@@ -201,31 +169,31 @@ func (cc *CmdClient) popLine() (string, error) {
 	return line, nil
 }
 
-func (cc *CmdClient) flushLines() {
+func (cc *Client) flushLines() {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc._lines = make([]string, 0)
 }
 
-func (cc *CmdClient) readBufSize() uint {
+func (cc *Client) readBufSize() uint {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	return cc._readBufSize
 }
 
-func (cc *CmdClient) flushOnWrite() bool {
+func (cc *Client) flushOnWrite() bool {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	return cc._flushOnWrite
 }
 
-func (cc *CmdClient) isReading() bool {
+func (cc *Client) isReading() bool {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	return cc._isReading
 }
 
-func (cc *CmdClient) setIsReading(isReading bool) {
+func (cc *Client) setIsReading(isReading bool) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc._isReading = isReading

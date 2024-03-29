@@ -9,5 +9,5 @@ import (
 
 func TestCmdClient(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "CmdClient Suite")
+	RunSpecs(t, "Client Suite")
 }
