@@ -1,28 +1,28 @@
-package uci_client_test
+package cmd_client_test
 
 import (
 	"bytes"
 	"context"
-	"github.com/CameronHonis/chess-bot-server/uci_client"
+	"github.com/CameronHonis/chess-bot-server/uci_client/cmd_client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"time"
 )
 
-var _ = FDescribe("CmdClient", func() {
+var _ = Describe("CmdClient", func() {
 	var buf bytes.Buffer
-	var cmdClient *uci_client.CmdClient
+	var cmdClient *cmd_client.CmdClient
 	var ctx context.Context
 	var ctxCancel context.CancelFunc
 	BeforeEach(func() {
 		buf = bytes.Buffer{}
 		ctx, ctxCancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
-		cmdClient = uci_client.NewCmdClient(&buf, &buf, 4096)
+		cmdClient = cmd_client.NewCmdClient(&buf, &buf)
 	})
 	AfterEach(func() {
 		ctxCancel()
 	})
-	Describe("Readlines", func() {
+	Describe("readlines", func() {
 		When("output is available at read time", func() {
 			BeforeEach(func() {
 				buf.WriteString("this is the first line\n")
@@ -35,21 +35,12 @@ var _ = FDescribe("CmdClient", func() {
 					}()
 				})
 				It("channels all available output within the context lifetime", func() {
-					var recvStr string
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("this is the first line"))
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("the second line"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("this is the first line"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("the second line"))
 				})
 			})
 			It("immediately channels all available output", func() {
-				var recvStr string
-				ch := make(chan string)
-				go cmdClient.Readlines(ctx, ch)
-				Eventually(ch).Should(Receive(&recvStr))
-				Expect(recvStr).To(Equal("this is the first line"))
+				Expect(cmdClient.ReadLine(ctx)).To(Equal("this is the first line"))
 			})
 		})
 		When("output is not available at read time", func() {
@@ -61,23 +52,12 @@ var _ = FDescribe("CmdClient", func() {
 					}()
 				})
 				It("channels all available output within the context lifetime", func() {
-					var recvStr string
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("this is a line without the 'newline' char at the end"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("this is a line without the 'newline' char at the end"))
 				})
 			})
 			When("no output becomes available within the lifetime of the context", func() {
-				It("does not channel any output", func() {
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Consistently(ch).ShouldNot(Receive())
-				})
-				It("closes the channel", func() {
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(BeClosed())
+				It("returns an error", func() {
+					Expect(cmdClient.ReadLine(ctx)).Error().To(HaveOccurred())
 				})
 			})
 		})
@@ -88,11 +68,7 @@ var _ = FDescribe("CmdClient", func() {
 					buf.WriteString("123456789")
 				})
 				It("channels the output regardless", func() {
-					var recvStr string
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("123456789"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("123456789"))
 				})
 			})
 			When("the output is 1.5x the buffer size", func() {
@@ -101,11 +77,7 @@ var _ = FDescribe("CmdClient", func() {
 					buf.WriteString("123456789")
 				})
 				It("channels the output regardless", func() {
-					var recvStr string
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("123456789"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("123456789"))
 				})
 			})
 			When("multiple lines in output wrap into the next buffer frame", func() {
@@ -114,15 +86,9 @@ var _ = FDescribe("CmdClient", func() {
 					buf.WriteString("a\nbcdef\nghk")
 				})
 				It("channels the output irrespective of the buffer size", func() {
-					var recvStr string
-					ch := make(chan string)
-					go cmdClient.Readlines(ctx, ch)
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("a"))
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("bcdef"))
-					Eventually(ch).Should(Receive(&recvStr))
-					Expect(recvStr).To(Equal("ghk"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("a"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("bcdef"))
+					Expect(cmdClient.ReadLine(ctx)).To(Equal("ghk"))
 				})
 			})
 		})
@@ -131,13 +97,13 @@ var _ = FDescribe("CmdClient", func() {
 
 var _ = Describe("BlockingReader", func() {
 	var buf bytes.Buffer
-	var br *uci_client.BlockingReader
+	var br *cmd_client.BlockingReader
 	var cancelCtx context.CancelFunc
 	BeforeEach(func() {
 		var ctx context.Context
 		ctx, cancelCtx = context.WithTimeout(context.Background(), 10*time.Millisecond)
 		buf = bytes.Buffer{}
-		br = uci_client.NewBlockingReader(&buf, ctx)
+		br = cmd_client.NewBlockingReader(&buf, ctx)
 	})
 	AfterEach(func() {
 		cancelCtx()
