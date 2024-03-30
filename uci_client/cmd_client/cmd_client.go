@@ -71,12 +71,16 @@ func ClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 	return NewClient(r, w), nil
 }
 
+// ReadLine is a blocking read on the next line from Stdout. If the context expires, ReadLine
+// will return an error indicating as such.
 func (cc *Client) ReadLine(ctx context.Context) (string, error) {
-	go cc.readLines(ctx)
+	if !cc.isReading() {
+		go cc.readLines(context.Background())
+	}
 	for {
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("timeout before next line")
+			return "", NewReaderTimeout("timed out before next line")
 		default:
 			line, popErr := cc.popLine()
 			if popErr == nil {
@@ -91,6 +95,7 @@ func (cc *Client) WriteString(s string) error {
 	if cc.flushOnWrite() {
 		cc.flushLines()
 	}
+
 	_, err := cc.w.Write([]byte(s))
 	return err
 }
