@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const PRINT_IO = true
+
 type ByteDump []byte
 
 // String trims all null bytes from end of string
@@ -54,8 +56,8 @@ func NewClient(r io.Reader, w io.Writer) *Client {
 
 // ClientFromCmd expects a running command
 func ClientFromCmd(cmd *exec.Cmd) (*Client, error) {
-	if cmd.Process == nil {
-		return nil, fmt.Errorf("cmd must be running before creating Client")
+	if cmd.Process != nil {
+		return nil, fmt.Errorf("cmd must not be running before creating Client")
 	}
 
 	w, openWriterErr := cmd.StdinPipe()
@@ -96,6 +98,9 @@ func (cc *Client) WriteString(s string) error {
 		cc.flushLines()
 	}
 
+	if PRINT_IO {
+		fmt.Printf("<< %s\n", s)
+	}
 	_, err := cc.w.Write([]byte(s))
 	return err
 }
@@ -152,6 +157,11 @@ func (cc *Client) readLines(ctx context.Context) {
 			lines = lines[:len(lines)-1]
 		}
 
+		if PRINT_IO {
+			for _, line := range lines {
+				fmt.Printf(">> %s\n", line)
+			}
+		}
 		cc.pushLines(lines...)
 	}
 	cc.setIsReading(false)
