@@ -10,8 +10,8 @@ import (
 type Engine struct {
 }
 
-func (re *Engine) Initialize(match *models.Match) {
-
+func (re *Engine) Initialize(match *models.Match) error {
+	return nil
 }
 
 func (re *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
