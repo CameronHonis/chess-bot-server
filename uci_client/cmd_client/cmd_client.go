@@ -26,6 +26,53 @@ func (b ByteDump) String() string {
 	return string(b[:n])
 }
 
+// ReaderWriterProxy is solely used for debugging purposes, although it is made generalized for any reader/writer
+// intercept tasks.
+type ReaderWriterProxy struct {
+	r       io.Reader
+	w       io.Writer
+	onRead  func(p ByteDump, n int, err error)
+	onWrite func(p ByteDump, n int, err error)
+	onClose func(error)
+}
+
+func DebuggingReaderWriterProxy(r io.Reader, w io.Writer) *ReaderWriterProxy {
+	var onRead = func(p ByteDump, n int, err error) {
+		if PRINT_IO {
+			s := string(p[:n])
+			fmt.Println(">", s)
+		}
+	}
+	var onWrite = func(p ByteDump, n int, err error) {
+		if PRINT_IO {
+			s := string(p[:n])
+			fmt.Println("<", s)
+		}
+	}
+	return &ReaderWriterProxy{
+		r:       r,
+		w:       w,
+		onRead:  onRead,
+		onWrite: onWrite,
+	}
+}
+
+func (rwp *ReaderWriterProxy) Read(p []byte) (n int, err error) {
+	n, err = rwp.r.Read(p)
+	if rwp.onRead != nil {
+		rwp.onRead(p, n, err)
+	}
+	return
+}
+
+func (rwp *ReaderWriterProxy) Write(p []byte) (n int, err error) {
+	n, err = rwp.w.Write(p)
+	if rwp.onWrite != nil {
+		rwp.onWrite(p, n, err)
+	}
+	return
+}
+
 // Client is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
 type Client struct {
 	__static__ marker.Marker
@@ -70,7 +117,9 @@ func ClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 		return nil, fmt.Errorf("cannot create Client, coud not open reader to cmd: %s", openReaderErr)
 	}
 
-	return NewClient(r, w), nil
+	readerWriterProxy := DebuggingReaderWriterProxy(r, w)
+
+	return NewClient(readerWriterProxy, readerWriterProxy), nil
 }
 
 // ReadLine is a blocking read on the next line from Stdout. If the context expires, ReadLine
@@ -93,15 +142,13 @@ func (cc *Client) ReadLine(ctx context.Context) (string, error) {
 	}
 }
 
-func (cc *Client) WriteString(s string) error {
+func (cc *Client) WriteLine(s string) error {
 	if cc.flushOnWrite() {
 		cc.flushLines()
 	}
 
-	if PRINT_IO {
-		fmt.Printf("<< %s\n", s)
-	}
-	_, err := cc.w.Write([]byte(s))
+	line := fmt.Sprintf("%s\n", s)
+	_, err := cc.w.Write([]byte(line))
 	return err
 }
 
@@ -157,11 +204,6 @@ func (cc *Client) readLines(ctx context.Context) {
 			lines = lines[:len(lines)-1]
 		}
 
-		if PRINT_IO {
-			for _, line := range lines {
-				fmt.Printf(">> %s\n", line)
-			}
-		}
 		cc.pushLines(lines...)
 	}
 	cc.setIsReading(false)

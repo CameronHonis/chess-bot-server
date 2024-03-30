@@ -284,7 +284,7 @@ func MockCmdClient(resDelay time.Duration) *cmd_client.Client {
 	return cmd_client.NewClient(&outBuf, mockWriter)
 }
 
-var _ = Describe("Client", func() {
+var _ = Describe("client", func() {
 	var uciClient *uci_client.Client
 	Describe("::Init", func() {
 		var ctx context.Context

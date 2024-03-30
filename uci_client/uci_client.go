@@ -35,7 +35,7 @@ func UciClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 // It returns the set of options that are configurable.
 func (c *Client) Init(ctx context.Context) (*set.Set[string], error) {
 	c.client.SetFlushOnWrite(true)
-	writeErr := c.client.WriteString("uci")
+	writeErr := c.client.WriteLine("uci")
 	if writeErr != nil {
 		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
@@ -62,7 +62,7 @@ func (c *Client) IsOption(optName string) bool {
 }
 
 func (c *Client) SetOption(ctx context.Context, optName string, optVal string) error {
-	writeErr := c.client.WriteString(fmt.Sprintf("setoption name %s value %s", optName, optVal))
+	writeErr := c.client.WriteLine(fmt.Sprintf("setoption name %s value %s", optName, optVal))
 	if writeErr != nil {
 		return fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
@@ -79,7 +79,7 @@ func (c *Client) SetOption(ctx context.Context, optName string, optVal string) e
 }
 
 func (c *Client) SetPosition(fen string) error {
-	writeErr := c.client.WriteString(fmt.Sprintf("position fen %s", fen))
+	writeErr := c.client.WriteLine(fmt.Sprintf("position fen %s", fen))
 	if writeErr != nil {
 		return fmt.Errorf("could not write to uci client: %s", writeErr)
 	}
@@ -87,7 +87,7 @@ func (c *Client) SetPosition(fen string) error {
 }
 
 func (c *Client) IsReady(ctx context.Context) (bool, error) {
-	writeErr := c.client.WriteString("isready")
+	writeErr := c.client.WriteLine("isready")
 	if writeErr != nil {
 		return false, fmt.Errorf("could not write to uci client %s", writeErr)
 	}
@@ -106,7 +106,7 @@ func (c *Client) Go(ctx context.Context, opts *SearchOptions) (string, error) {
 		return "", fmt.Errorf("cannot generate search command: %s", cmdErr)
 	}
 
-	writeErr := c.client.WriteString(cmd)
+	writeErr := c.client.WriteLine(cmd)
 	if writeErr != nil {
 		return "", fmt.Errorf("could not write to uci client %s", writeErr)
 	}
