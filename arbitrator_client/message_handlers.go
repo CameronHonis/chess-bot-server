@@ -84,7 +84,7 @@ func (ac *ArbitratorClient) HandleMatchUpdateMessage(msg *mainMods.Message) erro
 	}
 
 	if match.Result != mainMods.MATCH_RESULT_IN_PROGRESS {
-		removeErr := ac.BotMngr.RemoveClient(botClient.Key())
+		removeErr := ac.BotMngr.RemoveBot(botClient.Key())
 		if removeErr != nil {
 			return removeErr
 		}
@@ -115,7 +115,7 @@ var HandleChallengeUpdatedMessage = func(ac *ArbitratorClient, msg *mainMods.Mes
 
 	// NOTE: assumes that only update to challenge is when challenge is created
 	challenge := content.Challenge
-	_, botInitErr := ac.BotMngr.InitBotClient(challenge.BotName, challenge.ChallengerKey)
+	_, botInitErr := ac.BotMngr.InitBot(challenge)
 	if botInitErr != nil {
 		return DeclineChallengeRequest(ac.SendMessage, msg.Topic, challenge.ChallengerKey)
 	}

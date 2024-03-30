@@ -24,7 +24,7 @@ type ArbitratorClient struct {
 
 	__dependencies__ Marker
 	LogService       log.LoggerServiceI
-	BotMngr          bot_manager.BotManagerI
+	BotMngr          *bot_manager.BotManager
 
 	__state__ Marker
 	conn      *websocket.Conn

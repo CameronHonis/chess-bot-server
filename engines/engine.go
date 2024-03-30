@@ -16,7 +16,7 @@ type Engine interface {
 	Terminate()
 }
 
-func EngineByName(engineName string) (Engine, error) {
+func EngineFromName(engineName string) (Engine, error) {
 	switch engineName {
 	case "random":
 		return &random.Engine{}, nil

@@ -2,7 +2,8 @@ package bot_manager
 
 import (
 	"fmt"
-	mainMods "github.com/CameronHonis/chess-arbitrator/models"
+	"github.com/CameronHonis/chess-arbitrator/builders"
+	arb_mods "github.com/CameronHonis/chess-arbitrator/models"
 	mods "github.com/CameronHonis/chess-bot-server/models"
 	"github.com/CameronHonis/log"
 	. "github.com/CameronHonis/marker"
@@ -12,16 +13,9 @@ import (
 
 const ENV_BOT_MANAGER = "BOT_MANAGER"
 
-type BotManagerI interface {
-	service.ServiceI
-	Client(key mods.BotClientKey) (BotClient, error)
-	ClientByOppKey(oppKey mods.PlrClientKey) (BotClient, error)
-	ClientByMatch(match *mainMods.Match) (BotClient, error)
-
-	InitBotClient(botName string, oppKey mods.PlrClientKey) (BotClient, error)
-	RemoveClient(key mainMods.Key) error
-}
-
+// BotManager A key is generated and assigned to a new bot. This key is mapped to the player
+// key that is opposing the bot in the match. This allows a unique bot to be assigned
+// for the duration of a match.
 type BotManager struct {
 	service.Service
 	__dependencies__ Marker
@@ -30,7 +24,7 @@ type BotManager struct {
 	__state__         Marker
 	clientKeyByOppKey map[mods.PlrClientKey]mods.BotClientKey
 	oppKeyByClientKey map[mods.BotClientKey]mods.PlrClientKey
-	clientByKey       map[mods.BotClientKey]BotClient
+	clientByKey       map[mods.BotClientKey]*BotClient
 	mu                sync.Mutex
 }
 
@@ -38,14 +32,14 @@ func NewBotManager(config *BotManagerConfig) *BotManager {
 	m := &BotManager{
 		clientKeyByOppKey: make(map[mods.PlrClientKey]mods.BotClientKey),
 		oppKeyByClientKey: make(map[mods.BotClientKey]mods.PlrClientKey),
-		clientByKey:       make(map[mods.BotClientKey]BotClient),
+		clientByKey:       make(map[mods.BotClientKey]*BotClient),
 		mu:                sync.Mutex{},
 	}
 	m.Service = *service.NewService(m, config)
 	return m
 }
 
-func (bm *BotManager) Client(key mods.BotClientKey) (BotClient, error) {
+func (bm *BotManager) Client(key mods.BotClientKey) (*BotClient, error) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	if botClient, ok := bm.clientByKey[key]; ok {
@@ -54,7 +48,7 @@ func (bm *BotManager) Client(key mods.BotClientKey) (BotClient, error) {
 	return nil, fmt.Errorf("no client found with key %s", key)
 }
 
-func (bm *BotManager) ClientByOppKey(oppKey mods.PlrClientKey) (BotClient, error) {
+func (bm *BotManager) ClientByOppKey(oppKey mods.PlrClientKey) (*BotClient, error) {
 	clientKey, clientKeyErr := bm.ClientKeyByOppKey(oppKey)
 	if clientKeyErr != nil {
 		return nil, clientKeyErr
@@ -68,8 +62,8 @@ func (bm *BotManager) ClientByOppKey(oppKey mods.PlrClientKey) (BotClient, error
 	return nil, fmt.Errorf("no bot client found by oppKey %s", oppKey)
 }
 
-func (bm *BotManager) ClientByMatch(match *mainMods.Match) (BotClient, error) {
-	var client BotClient
+func (bm *BotManager) ClientByMatch(match *arb_mods.Match) (*BotClient, error) {
+	var client *BotClient
 	if client, _ = bm.ClientByOppKey(match.WhiteClientKey); client != nil {
 		return client, nil
 	}
@@ -79,23 +73,24 @@ func (bm *BotManager) ClientByMatch(match *mainMods.Match) (BotClient, error) {
 	return nil, fmt.Errorf("no client could be resolved from match")
 }
 
-func (bm *BotManager) InitBotClient(botName string, oppKey mods.PlrClientKey) (BotClient, error) {
-	// TODO: add lookups for remote bot clients
-	botClient, botClientErr := NewLocalBotClient(botName)
+func (bm *BotManager) InitBot(challenge *arb_mods.Challenge) (*BotClient, error) {
+	botClient, botClientErr := NewLocalBotClient(challenge.BotName)
 	if botClientErr != nil {
-		return nil, botClientErr
+		return nil, fmt.Errorf("could not create bot: %s", botClientErr)
 	}
 
-	clientKey := botClient.Key()
-	bm.mu.Lock()
-	defer bm.mu.Unlock()
-	bm.clientByKey[clientKey] = botClient
-	bm.clientKeyByOppKey[oppKey] = clientKey
-	bm.oppKeyByClientKey[clientKey] = oppKey
+	match := builders.NewMatchBuilder().FromChallenge(challenge).Build()
+	initErr := botClient.Engine().Initialize(match)
+	if initErr != nil {
+		return nil, fmt.Errorf("could not init bot: %s", initErr)
+	}
+
+	botKey := botClient.Key()
+	bm.addBot(challenge.ChallengerKey, botKey, botClient)
 	return botClient, nil
 }
 
-func (bm *BotManager) RemoveClient(key mods.BotClientKey) error {
+func (bm *BotManager) RemoveBot(key mods.BotClientKey) error {
 	client, clientErr := bm.Client(key)
 	if clientErr != nil {
 		return clientErr
@@ -133,4 +128,12 @@ func (bm *BotManager) OppKeyByClientKey(key mods.BotClientKey) (mods.PlrClientKe
 		return oppKey, nil
 	}
 	return "", fmt.Errorf("no opp key exists for client key %s", key)
+}
+
+func (bm *BotManager) addBot(playerKey mods.PlrClientKey, botKey mods.BotClientKey, botClient *BotClient) {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+	bm.clientByKey[botKey] = botClient
+	bm.clientKeyByOppKey[playerKey] = botKey
+	bm.oppKeyByClientKey[botKey] = playerKey
 }

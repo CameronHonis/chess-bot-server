@@ -23,11 +23,6 @@ func NewEngine(cmd *exec.Cmd) (*Engine, error) {
 		return nil, fmt.Errorf("could not construct CmdClient: %s", cmdClientErr)
 	}
 
-	startErr := cmd.Start()
-	if startErr != nil {
-		return nil, fmt.Errorf("could not start stockfish: %s", startErr)
-	}
-
 	return &Engine{
 		cmd:    cmd,
 		client: uci_client.NewUciClient(cmdClient),
@@ -37,6 +32,13 @@ func NewEngine(cmd *exec.Cmd) (*Engine, error) {
 func (e *Engine) Initialize(match *models.Match) error {
 	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second)
 	defer cancelCtx()
+
+	startErr := e.cmd.Start()
+	if startErr != nil {
+		return fmt.Errorf("could not start stockfish: %s", startErr)
+	}
+
+	time.Sleep(time.Second)
 
 	_, initErr := e.client.Init(ctx)
 	if initErr != nil {
