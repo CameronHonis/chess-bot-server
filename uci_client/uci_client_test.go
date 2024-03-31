@@ -29,7 +29,7 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 	contents := string(p)
 	var resp func(w io.Writer)
 	switch contents {
-	case "uci":
+	case "uci\n":
 		resp = func(w io.Writer) {
 			_, _ = w.Write([]byte("id name Stockfish dev-20240314-fb07281f\n" +
 				"id author the Stockfish developers (see AUTHORS file)\n\n" +
@@ -54,23 +54,23 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 				//"option name EvalFileSmall type string default nn-baff1ede1f90.nnue\n" +
 				"uciok\n"))
 		}
-	case "setoption name Threads value 2":
-	case "setoption name Threads value asdf":
+	case "setoption name Threads value 2\n":
+	case "setoption name Threads value asdf\n":
 		resp = func(w io.Writer) {
 			_, _ = w.Write([]byte("terminate called after throwing an instance of 'std::invalid_argument'\n" +
 				"  what():  stof\n" +
 				"Aborted (core dumped)\n"))
 		}
-	case "setoption name NotAnOption value some-value":
+	case "setoption name NotAnOption value some-value\n":
 		resp = func(w io.Writer) {
 			_, _ = w.Write([]byte("No such option: NotAnOption"))
 		}
-	case "position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1":
-	case "isready":
+	case "position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1\n":
+	case "isready\n":
 		resp = func(w io.Writer) {
 			_, _ = w.Write([]byte("readyok\n"))
 		}
-	case "go wtime 100000":
+	case "go wtime 100000\n":
 		resp = func(w io.Writer) {
 			toWrite := "info string NNUE evaluation using nn-1ceb1ade0001.nnue\n" +
 				"info string NNUE evaluation using nn-baff1ede1f90.nnue\n" +
@@ -281,10 +281,10 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 func MockCmdClient(resDelay time.Duration) *cmd_client.Client {
 	outBuf := bytes.Buffer{}
 	mockWriter := NewMockWriter(&outBuf, resDelay)
-	return cmd_client.NewClient(&outBuf, mockWriter)
+	return cmd_client.DefaultClient(nil, &outBuf, mockWriter)
 }
 
-var _ = Describe("client", func() {
+var _ = Describe("UciClient", func() {
 	var uciClient *uci_client.Client
 	Describe("::Init", func() {
 		var ctx context.Context
@@ -301,8 +301,7 @@ var _ = Describe("client", func() {
 				uciClient = uci_client.NewUciClient(cmdClient)
 			})
 			It("does not error", func() {
-				_, err := uciClient.Init(ctx)
-				Expect(err).To(Succeed())
+				Expect(uciClient.Init(ctx)).Error().To(Succeed())
 			})
 			It("saves the configurable options", func() {
 				_, _ = uciClient.Init(ctx)
@@ -319,7 +318,7 @@ var _ = Describe("client", func() {
 			BeforeEach(func() {
 				writeBuf := bytes.Buffer{}
 				readBuf := bytes.Buffer{}
-				cmdClient := cmd_client.NewClient(&readBuf, &writeBuf)
+				cmdClient := cmd_client.DefaultClient(nil, &readBuf, &writeBuf)
 				uciClient = uci_client.NewUciClient(cmdClient)
 			})
 			It("returns an error", func() {

@@ -12,14 +12,14 @@ import (
 // Client represents a client for any engine supporting UCI (Universal Chess Interface)
 // This interface is outlined [here](https://www.stmintz.com/ccc/index.php?id=141612)
 type Client struct {
-	client *cmd_client.Client
-	opts   *set.Set[string]
+	CmdClient *cmd_client.Client
+	opts      *set.Set[string]
 }
 
 func NewUciClient(client *cmd_client.Client) *Client {
 	return &Client{
-		client: client,
-		opts:   set.EmptySet[string](),
+		CmdClient: client,
+		opts:      set.EmptySet[string](),
 	}
 }
 
@@ -34,14 +34,14 @@ func UciClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 // Init tells the engine to use the uci protocol and stores the configurable options.
 // It returns the set of options that are configurable.
 func (c *Client) Init(ctx context.Context) (*set.Set[string], error) {
-	c.client.SetFlushOnWrite(true)
-	writeErr := c.client.WriteLine("uci")
+	c.CmdClient.SetFlushOnWrite(true)
+	writeErr := c.CmdClient.WriteLine("uci")
 	if writeErr != nil {
-		return nil, fmt.Errorf("could not write to uci client: %s", writeErr)
+		return nil, fmt.Errorf("could not write to uci CmdClient: %s", writeErr)
 	}
 
 	for {
-		resp, readErr := c.client.ReadLine(ctx)
+		resp, readErr := c.CmdClient.ReadLine(ctx)
 		if readErr != nil {
 			return nil, fmt.Errorf("could not read output after init: %s", readErr)
 		}
@@ -62,12 +62,12 @@ func (c *Client) IsOption(optName string) bool {
 }
 
 func (c *Client) SetOption(ctx context.Context, optName string, optVal string) error {
-	writeErr := c.client.WriteLine(fmt.Sprintf("setoption name %s value %s", optName, optVal))
+	writeErr := c.CmdClient.WriteLine(fmt.Sprintf("setoption name %s value %s", optName, optVal))
 	if writeErr != nil {
-		return fmt.Errorf("could not write to uci client: %s", writeErr)
+		return fmt.Errorf("could not write to uci CmdClient: %s", writeErr)
 	}
 
-	resp, readErr := c.client.ReadLine(ctx) // Only expect set config errors to be received here
+	resp, readErr := c.CmdClient.ReadLine(ctx) // Only expect set config errors to be received here
 	if readErr != nil {
 		if _, ok := readErr.(*cmd_client.ReaderTimeout); ok {
 			return nil
@@ -79,20 +79,20 @@ func (c *Client) SetOption(ctx context.Context, optName string, optVal string) e
 }
 
 func (c *Client) SetPosition(fen string) error {
-	writeErr := c.client.WriteLine(fmt.Sprintf("position fen %s", fen))
+	writeErr := c.CmdClient.WriteLine(fmt.Sprintf("position fen %s", fen))
 	if writeErr != nil {
-		return fmt.Errorf("could not write to uci client: %s", writeErr)
+		return fmt.Errorf("could not write to uci CmdClient: %s", writeErr)
 	}
 	return nil
 }
 
 func (c *Client) IsReady(ctx context.Context) (bool, error) {
-	writeErr := c.client.WriteLine("isready")
+	writeErr := c.CmdClient.WriteLine("isready")
 	if writeErr != nil {
-		return false, fmt.Errorf("could not write to uci client %s", writeErr)
+		return false, fmt.Errorf("could not write to uci CmdClient %s", writeErr)
 	}
 
-	resp, readErr := c.client.ReadLine(ctx)
+	resp, readErr := c.CmdClient.ReadLine(ctx)
 	if readErr != nil {
 		return false, readErr
 	}
@@ -101,18 +101,17 @@ func (c *Client) IsReady(ctx context.Context) (bool, error) {
 
 func (c *Client) Go(ctx context.Context, opts *SearchOptions) (string, error) {
 	cmd, cmdErr := searchOptionsToCmdStr(opts)
-	fmt.Println(cmd)
 	if cmdErr != nil {
 		return "", fmt.Errorf("cannot generate search command: %s", cmdErr)
 	}
 
-	writeErr := c.client.WriteLine(cmd)
+	writeErr := c.CmdClient.WriteLine(cmd)
 	if writeErr != nil {
-		return "", fmt.Errorf("could not write to uci client %s", writeErr)
+		return "", fmt.Errorf("could not write to uci CmdClient %s", writeErr)
 	}
 
 	for {
-		resp, readErr := c.client.ReadLine(ctx)
+		resp, readErr := c.CmdClient.ReadLine(ctx)
 		if readErr != nil {
 			return "", fmt.Errorf("read error while listening for best move: %s", readErr)
 		}
@@ -124,6 +123,10 @@ func (c *Client) Go(ctx context.Context, opts *SearchOptions) (string, error) {
 			return bestMoveDetails[1], nil
 		}
 	}
+}
+
+func (c *Client) End() error {
+	return c.CmdClient.End()
 }
 
 func searchOptionsToCmdStr(opts *SearchOptions) (string, error) {
