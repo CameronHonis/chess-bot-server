@@ -7,7 +7,6 @@ import (
 	"github.com/CameronHonis/chess-arbitrator/models"
 	"github.com/CameronHonis/chess-bot-server/uci_client"
 	"github.com/CameronHonis/chess-bot-server/uci_client/cmd_client"
-	"os"
 	"os/exec"
 	"time"
 )
@@ -38,7 +37,10 @@ func (e *Engine) Initialize(match *models.Match) error {
 		return fmt.Errorf("could not start stockfish: %s", startErr)
 	}
 
-	time.Sleep(time.Second)
+	_, readErr := e.client.CmdClient.ReadLine(ctx)
+	if readErr != nil {
+		return fmt.Errorf("could not read startup msg: %s", readErr)
+	}
 
 	_, initErr := e.client.Init(ctx)
 	if initErr != nil {
@@ -54,7 +56,6 @@ func (e *Engine) Initialize(match *models.Match) error {
 }
 
 func (e *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
-	time.Sleep(time.Second)
 	searchOpts := uci_client.NewSearchOptionsBuilder().
 		WithWhiteMs(uint(match.WhiteTimeRemainingSec * 1000.)).
 		WithBlackMs(uint(match.BlackTimeRemainingSec * 1000.)).
@@ -63,10 +64,11 @@ func (e *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
 	if setPosErr != nil {
 		return nil, fmt.Errorf("could not set position: %s", setPosErr)
 	}
-	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second)
+
+	readyCtx, cancelCtx := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancelCtx()
 	for {
-		isReady, isReadyErr := e.client.IsReady(ctx)
+		isReady, isReadyErr := e.client.IsReady(readyCtx)
 		if isReadyErr != nil {
 			return nil, fmt.Errorf("could not read ready state of engine: %s", isReadyErr)
 		}
@@ -74,7 +76,17 @@ func (e *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
 			break
 		}
 	}
-	bestMoveLAlg, searchErr := e.client.Go(ctx, searchOpts)
+
+	var secsRemaining float64
+	if match.Board.IsWhiteTurn {
+		secsRemaining = match.WhiteTimeRemainingSec
+	} else {
+		secsRemaining = match.BlackTimeRemainingSec
+	}
+	genMoveCtx, cancelGenMoveCtx := context.WithTimeout(context.Background(), time.Duration(secsRemaining+1)*time.Second)
+	defer cancelGenMoveCtx()
+
+	bestMoveLAlg, searchErr := e.client.Go(genMoveCtx, searchOpts)
 	if searchErr != nil {
 		return nil, fmt.Errorf("error reading best move: %s", searchErr)
 	}
@@ -86,9 +98,8 @@ func (e *Engine) GenerateMove(match *models.Match) (*chess.Move, error) {
 }
 
 func (e *Engine) Terminate() {
-	interruptErr := e.cmd.Process.Signal(os.Interrupt)
-	if interruptErr != nil {
-		_ = e.cmd.Process.Kill()
+	if endErr := e.client.End(); endErr != nil {
+		fmt.Println("WARN: could not end client: ", endErr)
 	}
 }
 
