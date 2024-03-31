@@ -49,7 +49,7 @@ var _ = Describe("Client", func() {
 	BeforeEach(func() {
 		readerWriter = NewReaderWriter()
 		ctx, ctxCancel = context.WithTimeout(context.Background(), 55*time.Millisecond)
-		cmdClient = cmd_client.NewClient(readerWriter, readerWriter)
+		cmdClient = cmd_client.DefaultClient(nil, readerWriter, readerWriter)
 	})
 	AfterEach(func() {
 		ctxCancel()

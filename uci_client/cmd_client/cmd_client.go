@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/CameronHonis/marker"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -38,12 +39,18 @@ type ReaderWriterProxy struct {
 
 func DebuggingReaderWriterProxy(r io.Reader, w io.Writer) *ReaderWriterProxy {
 	var onRead = func(p ByteDump, n int, err error) {
+		if err != nil {
+			return
+		}
 		if PRINT_IO {
 			s := string(p[:n])
 			fmt.Println(">", s)
 		}
 	}
 	var onWrite = func(p ByteDump, n int, err error) {
+		if err != nil {
+			return
+		}
 		if PRINT_IO {
 			s := string(p[:n])
 			fmt.Println("<", s)
@@ -76,8 +83,9 @@ func (rwp *ReaderWriterProxy) Write(p []byte) (n int, err error) {
 // Client is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
 type Client struct {
 	__static__ marker.Marker
-	r          io.Reader
-	w          io.Writer
+	cmd        *exec.Cmd
+	stdout     io.Reader
+	stdin      io.Writer
 
 	__config__    marker.Marker // these should be safe to change while processing io
 	_readBufSize  uint
@@ -89,10 +97,11 @@ type Client struct {
 	mu          sync.Mutex
 }
 
-func NewClient(r io.Reader, w io.Writer) *Client {
+func DefaultClient(cmd *exec.Cmd, r io.Reader, w io.Writer) *Client {
 	return &Client{
-		r:             r,
-		w:             w,
+		cmd:           cmd,
+		stdout:        r,
+		stdin:         w,
 		_readBufSize:  4096,
 		_flushOnWrite: true,
 		_isReading:    false,
@@ -119,7 +128,7 @@ func ClientFromCmd(cmd *exec.Cmd) (*Client, error) {
 
 	readerWriterProxy := DebuggingReaderWriterProxy(r, w)
 
-	return NewClient(readerWriterProxy, readerWriterProxy), nil
+	return DefaultClient(cmd, readerWriterProxy, readerWriterProxy), nil
 }
 
 // ReadLine is a blocking read on the next line from Stdout. If the context expires, ReadLine
@@ -148,7 +157,7 @@ func (cc *Client) WriteLine(s string) error {
 	}
 
 	line := fmt.Sprintf("%s\n", s)
-	_, err := cc.w.Write([]byte(line))
+	_, err := cc.stdin.Write([]byte(line))
 	return err
 }
 
@@ -168,13 +177,25 @@ func (cc *Client) FlushReader() {
 	cc.flushLines()
 }
 
+func (cc *Client) End() error {
+	if cc.cmd.Process.Signal(os.Interrupt) != nil {
+		fmt.Println("WARN: error sending interrupt signal, killing process instead")
+		return cc.cmd.Process.Kill()
+	}
+	return nil
+}
+
+func (cc *Client) IsRunning() bool {
+	return cc.cmd.ProcessState == nil
+}
+
 func (cc *Client) readLines(ctx context.Context) {
 	if cc.isReading() {
 		return
 	}
 	cc.setIsReading(true)
 
-	br := &BlockingReader{cc.r, ctx}
+	br := &BlockingReader{cc.stdout, ctx}
 	var carryLine string
 
 	for {
