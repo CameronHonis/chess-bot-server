@@ -35,6 +35,10 @@ func (rw *ReaderWriter) Write(p []byte) (n int, err error) {
 	return rw.buf.Write(p)
 }
 
+func (rw *ReaderWriter) Close() error {
+	return nil
+}
+
 func (rw *ReaderWriter) WriteLine(s string) {
 	rw.mu.Lock()
 	defer rw.mu.Unlock()

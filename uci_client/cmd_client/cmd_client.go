@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/CameronHonis/marker"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -30,14 +29,14 @@ func (b ByteDump) String() string {
 // ReaderWriterProxy is solely used for debugging purposes, although it is made generalized for any reader/writer
 // intercept tasks.
 type ReaderWriterProxy struct {
-	r       io.Reader
-	w       io.Writer
+	r       io.ReadCloser
+	w       io.WriteCloser
 	onRead  func(p ByteDump, n int, err error)
 	onWrite func(p ByteDump, n int, err error)
-	onClose func(error)
+	onClose func()
 }
 
-func DebuggingReaderWriterProxy(r io.Reader, w io.Writer) *ReaderWriterProxy {
+func DebuggingReaderWriterProxy(r io.ReadCloser, w io.WriteCloser) *ReaderWriterProxy {
 	var onRead = func(p ByteDump, n int, err error) {
 		if err != nil {
 			return
@@ -80,12 +79,21 @@ func (rwp *ReaderWriterProxy) Write(p []byte) (n int, err error) {
 	return
 }
 
+func (rwp *ReaderWriterProxy) Close() error {
+	_ = rwp.r.Close()
+	_ = rwp.w.Close()
+	if rwp.onClose != nil {
+		rwp.onClose()
+	}
+	return nil
+}
+
 // Client is a friendly wrapper around a running exec.Cmd that allows easy reads on constantly changing Stdout
 type Client struct {
 	__static__ marker.Marker
 	cmd        *exec.Cmd
-	stdout     io.Reader
-	stdin      io.Writer
+	stdout     io.ReadCloser
+	stdin      io.WriteCloser
 
 	__config__    marker.Marker // these should be safe to change while processing io
 	_readBufSize  uint
@@ -97,7 +105,7 @@ type Client struct {
 	mu          sync.Mutex
 }
 
-func DefaultClient(cmd *exec.Cmd, r io.Reader, w io.Writer) *Client {
+func DefaultClient(cmd *exec.Cmd, r io.ReadCloser, w io.WriteCloser) *Client {
 	return &Client{
 		cmd:           cmd,
 		stdout:        r,
@@ -178,9 +186,17 @@ func (cc *Client) FlushReader() {
 }
 
 func (cc *Client) End() error {
-	if cc.cmd.Process.Signal(os.Interrupt) != nil {
-		fmt.Println("WARN: error sending interrupt signal, killing process instead")
-		return cc.cmd.Process.Kill()
+	if killErr := cc.cmd.Process.Kill(); killErr != nil {
+		return fmt.Errorf("could not kill process: %s", killErr)
+	}
+	if stdinCloseErr := cc.stdin.Close(); stdinCloseErr != nil {
+		return fmt.Errorf("could not close stdin while closing process: %s", stdinCloseErr)
+	}
+	if stdoutCloseErr := cc.stdout.Close(); stdoutCloseErr != nil {
+		return fmt.Errorf("could not close stdout while closing process: %s", stdoutCloseErr)
+	}
+	if waitErr := cc.cmd.Wait(); waitErr != nil {
+		return fmt.Errorf("could not wait for process to close: %s", waitErr)
 	}
 	return nil
 }

@@ -13,19 +13,28 @@ import (
 	"time"
 )
 
-type MockWriter struct {
-	out   io.Writer
-	delay time.Duration
+type MockReaderWriter struct {
+	buf         *bytes.Buffer
+	respondReal bool
+	delay       time.Duration
 }
 
-func NewMockWriter(out io.Writer, delay time.Duration) *MockWriter {
-	return &MockWriter{
-		out:   out,
-		delay: delay,
+func NewMockWriter(buf *bytes.Buffer, respondReal bool, delay time.Duration) *MockReaderWriter {
+	return &MockReaderWriter{
+		buf:         buf,
+		respondReal: respondReal,
+		delay:       delay,
 	}
 }
 
-func (m *MockWriter) Write(p []byte) (int, error) {
+func (m *MockReaderWriter) Read(p []byte) (int, error) {
+	return m.buf.Read(p)
+}
+
+func (m *MockReaderWriter) Write(p []byte) (int, error) {
+	if !m.respondReal {
+		return 0, nil
+	}
 	contents := string(p)
 	var resp func(w io.Writer)
 	switch contents {
@@ -272,16 +281,24 @@ func (m *MockWriter) Write(p []byte) (int, error) {
 	//	}
 	//time.Sleep(m.delay)
 	if resp != nil {
-		go resp(m.out)
+		go resp(m.buf)
 	}
 	//}(m.out, resp)
 	return 0, nil
 }
 
+func (m *MockReaderWriter) Close() error {
+	return nil
+}
+
 func MockCmdClient(resDelay time.Duration) *cmd_client.Client {
-	outBuf := bytes.Buffer{}
-	mockWriter := NewMockWriter(&outBuf, resDelay)
-	return cmd_client.DefaultClient(nil, &outBuf, mockWriter)
+	mockRW := NewMockWriter(&bytes.Buffer{}, true, resDelay)
+	return cmd_client.DefaultClient(nil, mockRW, mockRW)
+}
+
+func MockBadCmdClient(resDelay time.Duration) *cmd_client.Client {
+	mockRW := NewMockWriter(&bytes.Buffer{}, false, resDelay)
+	return cmd_client.DefaultClient(nil, mockRW, mockRW)
 }
 
 var _ = Describe("UciClient", func() {
@@ -316,9 +333,7 @@ var _ = Describe("UciClient", func() {
 		})
 		When("the engine does not respond to 'uci'", func() {
 			BeforeEach(func() {
-				writeBuf := bytes.Buffer{}
-				readBuf := bytes.Buffer{}
-				cmdClient := cmd_client.DefaultClient(nil, &readBuf, &writeBuf)
+				cmdClient := MockBadCmdClient(100 * time.Millisecond)
 				uciClient = uci_client.NewUciClient(cmdClient)
 			})
 			It("returns an error", func() {
