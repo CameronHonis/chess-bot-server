@@ -33,6 +33,7 @@ func (m *MockReaderWriter) Read(p []byte) (int, error) {
 
 func (m *MockReaderWriter) Write(p []byte) (int, error) {
 	if !m.respondReal {
+		time.Sleep(m.delay)
 		return 0, nil
 	}
 	contents := string(p)
@@ -281,6 +282,7 @@ func (m *MockReaderWriter) Write(p []byte) (int, error) {
 	//	}
 	//time.Sleep(m.delay)
 	if resp != nil {
+		time.Sleep(m.delay)
 		go resp(m.buf)
 	}
 	//}(m.out, resp)
