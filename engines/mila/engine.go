@@ -1,4 +1,4 @@
-package stockfish
+package mila
 
 import (
 	"context"

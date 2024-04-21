@@ -117,6 +117,7 @@ var HandleChallengeUpdatedMessage = func(ac *ArbitratorClient, msg *mainMods.Mes
 	challenge := content.Challenge
 	_, botInitErr := ac.BotMngr.InitBot(challenge)
 	if botInitErr != nil {
+		ac.LogService.LogRed(ENV_ARBITRATOR_CLIENT, botInitErr)
 		return DeclineChallengeRequest(ac.SendMessage, msg.Topic, challenge.ChallengerKey)
 	}
 
