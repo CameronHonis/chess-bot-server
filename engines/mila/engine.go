@@ -1,4 +1,4 @@
-package stockfish
+package mila
 
 import (
 	"context"
@@ -45,11 +45,6 @@ func (e *Engine) Initialize(match *models.Match) error {
 	_, initErr := e.client.Init(ctx)
 	if initErr != nil {
 		return initErr
-	}
-
-	optErr := e.SetOption(ctx, "Threads", "32")
-	if optErr != nil {
-		return fmt.Errorf("error setting option 'Threads' to 32: %s", optErr)
 	}
 
 	return nil
